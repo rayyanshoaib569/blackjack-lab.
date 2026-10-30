@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Streamlit local settings and secrets
+.streamlit/secrets.toml
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Keep the existing reference PDFs out of the app repository
+/_OceanofPDF.com_Trade_like_a_casino_-_Richard_L_Weissman.pdf
+/0412311v1.pdf
+/0904.4364v4.pdf
+/AkaashBlackJack.pdf
+/Blackjack_ the math behind the cards.pdf
+/Optimal-Blackjack-Strategy-with-Lucky-Bucks.pdf
+/The Expected Value of an Advantage Blackjack player.pdf
+/Vaidyanathan-Thesis.pdf
