@@ -12,6 +12,7 @@ import blackjack_engine as bj
 APP_TITLE = "Blackjack Lab"
 STORE_KEY = "blackjack-lab.session.v1"
 EMPTY_SENTINEL = "__BLACKJACK_LAB_EMPTY__"
+DEFAULT_STARTING_BALANCE = 2500
 
 
 def default_rules() -> dict[str, Any]:
@@ -98,6 +99,8 @@ def make_game_data() -> dict[str, Any]:
     rules = default_rules()
     return {
         "version": 1,
+        "starting_balance": DEFAULT_STARTING_BALANCE,
+        "balance": DEFAULT_STARTING_BALANCE,
         "rules": deepcopy(rules),
         "draft_rules": deepcopy(rules),
         "shoe": bj.new_shoe(rules),
@@ -179,6 +182,13 @@ def hydrate_game() -> bool:
         except (json.JSONDecodeError, TypeError, ValueError):
             data = make_game_data()
             st.session_state["_storage_warning"] = "The saved browser session could not be read, so a fresh shoe was started."
+    # Upgrade sessions saved by earlier versions without discarding their shoe or history.
+    history = data.setdefault("history", [])
+    if "starting_balance" not in data or "balance" not in data:
+        data.setdefault("starting_balance", DEFAULT_STARTING_BALANCE)
+        recorded_net = sum(float(hand.get("total_net", 0.0)) for hand in history)
+        data.setdefault("balance", float(data["starting_balance"]) + recorded_net)
+    st.session_state.setdefault("starting_balance_input", int(data["starting_balance"]))
     st.session_state["game_data"] = data
     st.session_state["_game_hydrated"] = True
     return True
@@ -235,6 +245,17 @@ def style_app() -> None:
         .history-meta { color:#a5b2ac; font-size:.8rem; }
         .rank-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(52px,1fr)); gap:.4rem; margin:.5rem 0; }
         .rank-cell { display:flex; justify-content:space-between; gap:.25rem; padding:.45rem .5rem; border-radius:8px; border:1px solid rgba(216,181,109,.13); background:rgba(27,38,35,.62); color:#e7dfcb; font:.78rem 'DM Mono',monospace; }
+        .table-seats { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); gap:1.35rem; align-items:stretch; }
+        .table-seat { min-width:0; padding:1rem; border:1px solid rgba(231,215,171,.22); border-radius:16px; background:rgba(7,34,27,.3); }
+        .table-seat.player-seat { background:rgba(7,34,27,.47); }
+        .seat-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; min-height:2.25rem; }
+        .seat-total { color:#f1e2bb; font:600 1.05rem 'DM Mono',monospace; }
+        .player-hand { margin:.6rem 0 .9rem; padding:.45rem .55rem .65rem; border:1px solid transparent; border-radius:12px; }
+        .player-hand.is-active { border-color:rgba(240,219,167,.75); background:rgba(240,219,167,.07); box-shadow:0 0 20px rgba(240,219,167,.08); }
+        .st-key-table_controls { padding:1rem 1.1rem; border:1px solid rgba(216,181,109,.3); border-radius:16px; background:linear-gradient(135deg,rgba(30,45,39,.96),rgba(17,27,25,.96)); margin:.75rem 0 1rem; }
+        .st-key-table_controls .stButton button { min-height:2.8rem; font-weight:700; }
+        .st-key-table_controls .stButton button[kind="primary"] { box-shadow:0 4px 14px rgba(216,181,109,.16); }
+        .st-key-table_controls .stButton button:disabled { opacity:.38; }
         .stButton button { border:1px solid rgba(216,181,109,.4); border-radius:10px; transition:transform .14s ease,background .14s ease,border-color .14s ease; }
         .stButton button:hover { transform:translateY(-1px); border-color:#d8b56d; background:rgba(216,181,109,.1); }
         .stButton button[kind="primary"] { background:linear-gradient(135deg,#d8b56d,#b48b3f); color:#18211d; border:0; font-weight:700; }
@@ -244,7 +265,7 @@ def style_app() -> None:
         button[data-baseweb="tab"] { color:#acb9b2; }
         button[data-baseweb="tab"][aria-selected="true"] { color:#f0dfb5; }
         [data-testid="stExpander"] { border:1px solid rgba(216,181,109,.16); border-radius:12px; background:rgba(18,27,26,.55); }
-        @media(max-width:700px) { .felt-table { border-radius:28px; padding:1.2rem 1rem; min-height:260px; } .playing-card { width:50px;height:72px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
+        @media(max-width:700px) { .felt-table { border-radius:28px; padding:1.2rem 1rem; min-height:260px; } .table-seats { grid-template-columns:1fr; gap:.65rem; } .table-seat { padding:.8rem; } .playing-card { width:50px;height:72px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
         </style>
         """,
         unsafe_allow_html=True,
@@ -290,44 +311,55 @@ def show_table(game: dict[str, Any]) -> None:
     shoe = game["shoe"]
     remaining = sum(shoe["cards"])
     shoe_fraction = remaining / max(1, shoe["initial_total"])
+    active_round = bool(round_state and round_state.get("phase") != "complete")
+    wager_now = sum(float(hand.get("wager", 0.0)) for hand in round_state.get("hands", [])) if active_round else 0.0
+    insurance_now = float(round_state.get("initial_wager", 0.0)) * 0.5 if active_round and round_state.get("insurance_taken") else 0.0
     st.markdown(
         f'<div class="eyebrow">Solo table · Shoe {shoe["id"]} · {game["rules"]["name"]}</div>',
         unsafe_allow_html=True,
     )
+    balance_cols = st.columns(4)
+    balance_cols[0].metric("Balance", f'{float(game.get("balance", DEFAULT_STARTING_BALANCE)):,.0f} credits')
+    balance_cols[1].metric("Available", f'{bj.available_balance(game):,.0f} credits')
+    wager_label = f"{wager_now:,.0f}" + (f" + {insurance_now:,.0f} insurance" if insurance_now else "")
+    balance_cols[2].metric("Wager", f"{wager_label} credits" if active_round else "Set below")
+    balance_cols[3].metric("Cards left", f"{remaining} / {shoe['initial_total']}")
+
     if not round_state:
         st.markdown(
-            '<div class="felt-table"><div class="table-label">Dealer</div><div class="cards"><div class="playing-card back"><span>21</span><span>?</span></div></div><div style="height:22px"></div><div class="table-label">Your seat · set a wager, then deal</div><div class="cards"><div class="playing-card back"><span>DEAL</span><span>?</span></div><div class="playing-card back"><span>DEAL</span><span>?</span></div></div></div>',
+            '<div class="felt-table"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div><div class="table-label">Dealer</div><div class="subtle">Waiting for the deal</div></div><span class="seat-total">—</span></div><div class="cards"><div class="playing-card back"><span>21</span><span>?</span></div></div></section><section class="table-seat player-seat"><div class="seat-heading"><div><div class="table-label">Your seat</div><div class="subtle">Set a wager, then deal</div></div><span class="seat-total">—</span></div><div class="cards"><div class="playing-card back"><span>DEAL</span><span>?</span></div><div class="playing-card back"><span>DEAL</span><span>?</span></div></div></section></div></div>',
             unsafe_allow_html=True,
         )
-        show_shoe_composition(game, None)
-        return
-
-    dealer_cards = round_state.get("dealer_cards", [round_state["dealer_up"]])
-    show_hidden = round_state["phase"] not in {"complete"} and round_state.get("dealer_hole") is not None and not round_state.get("hole_revealed")
-    european_placeholder = round_state["rules"]["dealer_mode"] == bj.NO_HOLE and round_state["phase"] not in {"complete"}
-    dealer_note = '<span class="hand-status">Second card dealt after player hands</span>' if european_placeholder else ""
-    dealer_value = ""
-    if round_state.get("phase") == "complete":
-        dealer_value = f' <span class="hand-status">{round_state.get("dealer_result", "")}</span>'
-    dealer_html = cards_html(dealer_cards, hidden=show_hidden)
-    player_html = []
-    for index, hand in enumerate(round_state["hands"]):
-        current = round_state.get("phase") == "player" and index == round_state.get("current_hand")
-        total, soft = bj.hand_value(hand["cards"])
-        total_label = f"{total}" + (" soft" if soft else "")
-        status = "Your decision" if current else hand.get("status", "active").replace("_", " ")
-        player_html.append(
-            f'<div style="margin:.8rem 0 1rem;" class="{"active-hand" if current else ""}"><div class="table-label">Hand {index + 1} · {total_label} · wager {hand["wager"]:g} units <span class="hand-status">{status}</span></div>{cards_html(hand["cards"])}</div>'
+    else:
+        dealer_cards = round_state.get("dealer_cards", [round_state["dealer_up"]])
+        show_hidden = round_state["phase"] != "complete" and round_state.get("dealer_hole") is not None and not round_state.get("hole_revealed")
+        european_placeholder = round_state["rules"]["dealer_mode"] == bj.NO_HOLE and round_state["phase"] != "complete"
+        if round_state.get("phase") == "complete":
+            dealer_total, dealer_soft = bj.hand_value(dealer_cards)
+            result = round_state.get("dealer_result", "")
+            dealer_value = result.title() if result in {"bust", "blackjack"} else str(dealer_total) + (" soft" if dealer_soft else "")
+            dealer_note = "Final hand"
+        else:
+            dealer_value = f"Up card {round_state['dealer_up']}"
+            dealer_note = "Second card dealt after player hands" if european_placeholder else "Hole card hidden"
+        dealer_html = cards_html(dealer_cards, hidden=show_hidden, hidden_count=1 if european_placeholder else 0)
+        player_html = []
+        for index, hand in enumerate(round_state["hands"]):
+            current = round_state.get("phase") == "player" and index == round_state.get("current_hand")
+            total, soft = bj.hand_value(hand["cards"])
+            total_label = f"{total}" + (" · soft" if soft else "")
+            status = "Your decision" if current else hand.get("status", "active").replace("_", " ")
+            player_html.append(
+                f'<div class="player-hand {"is-active" if current else ""}"><div class="table-label">Hand {index + 1} · {total_label} · wager {float(hand["wager"]):,.0f} credits <span class="hand-status">{status}</span></div>{cards_html(hand["cards"])}</div>'
+            )
+        st.markdown(
+            f'<div class="felt-table"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div><div class="table-label">Dealer</div><div class="subtle">{dealer_note}</div></div><span class="seat-total">{dealer_value}</span></div>{dealer_html}</section><section class="table-seat player-seat"><div class="seat-heading"><div><div class="table-label">Your seat</div><div class="subtle">{len(round_state["hands"])} hand(s) · {round_state["phase"].replace("_", " ").title()}</div></div></div>{"".join(player_html)}</section></div></div>',
+            unsafe_allow_html=True,
         )
-    st.markdown(
-        f'<div class="felt-table"><div class="table-label">Dealer{dealer_value} {dealer_note}</div>{dealer_html}<div style="height:1.25rem"></div>{"".join(player_html)}</div>',
-        unsafe_allow_html=True,
-    )
-    columns = st.columns(4)
-    columns[0].metric("Cards remaining", f"{remaining} / {shoe['initial_total']}")
-    columns[1].metric("Shoe used", f"{(1-shoe_fraction)*100:.0f}%")
-    columns[2].metric("Hands in shoe", shoe["rounds"])
-    columns[3].metric("Dealer rule", game["rules"]["dealer_soft_17"].replace(" soft", ""))
+    shoe_cols = st.columns(3)
+    shoe_cols[0].metric("Shoe used", f"{(1-shoe_fraction)*100:.0f}%")
+    shoe_cols[1].metric("Hands in shoe", shoe["rounds"])
+    shoe_cols[2].metric("Dealer rule", game["rules"]["dealer_soft_17"].replace(" soft", ""))
     show_shoe_composition(game, round_state)
 
 
@@ -345,6 +377,7 @@ def _decision_cache_key(game: dict[str, Any], hand_index: int) -> str:
         "rules": round_state["rules"],
         "hand_count": len(round_state["hands"]),
         "index": hand_index,
+        "available": bj.available_balance(game),
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
@@ -353,7 +386,9 @@ def get_analysis(game: dict[str, Any], hand_index: int) -> dict[str, Any]:
     cache = st.session_state.setdefault("_decision_cache", {})
     key = _decision_cache_key(game, hand_index)
     if key not in cache:
-        cache[key] = bj.decision_analysis(game["round"], game["shoe"], hand_index)
+        cache[key] = bj.decision_analysis(
+            game["round"], game["shoe"], hand_index, bj.available_balance(game)
+        )
         while len(cache) > 8:
             cache.pop(next(iter(cache)))
     return cache[key]
@@ -373,7 +408,7 @@ def show_dealer_outcomes(outcomes: dict[str, float]) -> None:
     st.markdown("".join(html), unsafe_allow_html=True)
 
 
-def show_decision_panel(game: dict[str, Any], analysis: dict[str, Any], hand_index: int) -> None:
+def show_hand_math(game: dict[str, Any], analysis: dict[str, Any], hand_index: int) -> None:
     round_state = game["round"]
     hand = round_state["hands"][hand_index]
     total, soft = bj.hand_value(hand["cards"])
@@ -390,13 +425,13 @@ def show_decision_panel(game: dict[str, Any], analysis: dict[str, Any], hand_ind
     st.caption(f"EV = expected net return per 1 unit of this hand's wager. Sampled from {analysis['simulation_count']:,} finite-shoe rollouts; ± values are estimated standard errors.")
 
     actions = analysis["actions"]
-    cols = st.columns(len(actions))
-    for index, action in enumerate(actions):
-        estimate = analysis["evs"][action]
-        recommended = action == analysis["recommended"]
-        label = action.title() + (" · EV pick" if recommended else "")
-        with cols[index % len(cols)]:
-            st.markdown(
+    for row_start in range(0, len(actions), 3):
+        row_actions = actions[row_start : row_start + 3]
+        cols = st.columns(len(row_actions))
+        for index, action in enumerate(row_actions):
+            estimate = analysis["evs"][action]
+            recommended = action == analysis["recommended"]
+            cols[index].markdown(
                 f'<div class="decision-card {"recommended" if recommended else ""}"><div class="decision-action">{action}{" · recommended" if recommended else ""}</div><div class="decision-ev">{format_ev(estimate["ev"])}</div><div class="decision-se">± {estimate["se"]:.3f} SE · per unit</div></div>',
                 unsafe_allow_html=True,
             )
@@ -406,7 +441,7 @@ def show_decision_panel(game: dict[str, Any], analysis: dict[str, Any], hand_ind
         f'<div class="recommendation"><b>Current EV leader: {recommended.title()}</b> · {format_ev(analysis["evs"][recommended]["ev"])} units per unit wager in this estimate.</div>',
         unsafe_allow_html=True,
     )
-    with st.expander("Why this action? · probability and EV details", expanded=False):
+    with st.expander("Why this recommendation?", expanded=False):
         st.markdown(
             f"The shoe has **{analysis['unseen_total']} unseen cards** in the calculation, including the dealer's hidden card when that rule applies. There are **{analysis['physical_remaining']} physical cards left to draw**. The hidden card is not revealed to this analysis; when a peek ruled out blackjack, the simulated hidden-card pool is conditioned on that fact."
         )
@@ -414,26 +449,13 @@ def show_decision_panel(game: dict[str, Any], analysis: dict[str, Any], hand_ind
             st.markdown(f"- Immediate bust chance on a hit: **{analysis['bust_probability']*100:.2f}%** (exact next-card probability).")
         st.markdown("- Dealer outcome bars estimate the distribution if you stand now. They sample the finite shoe under the active hit/stand-soft-17 and hole-card rules; the player's future hit cards are not reserved for that separate display.")
         st.markdown("- EVs are net returns from the main hand only. They include the active payout, dealer behavior, double/split limits, and shoe composition.")
-        st.markdown("- After the action being compared, each rollout continues with a disclosed rule-aware basic-strategy policy. The highest estimated EV is the recommendation; it is not an exact globally optimal strategy solution.")
+        st.markdown("- After the action being compared, each rollout continues with a disclosed rule-aware basic-strategy policy. The available practice balance limits later doubles and splits; if a continuation double or split cannot be funded, that rollout hits instead (one-card split aces stand). The highest estimated EV is the recommendation; it is not an exact globally optimal strategy solution.")
         st.markdown("- EV gaps smaller than roughly **2× the combined standard error** may be statistically unclear at this sample count.")
         ev_rows = []
         for action in actions:
             item = analysis["evs"][action]
             ev_rows.append(f"| {action.title()} | {item['ev']:+.4f} | ± {item['se']:.4f} | {item['samples']:,} |")
         st.markdown("| Action | EV / unit | SE | Samples |\n|---|---:|---:|---:|\n" + "\n".join(ev_rows))
-
-    st.markdown("#### Your move")
-    button_cols = st.columns(len(actions))
-    for index, action in enumerate(actions):
-        if button_cols[index].button(
-            {"stand": "Stand", "hit": "Hit", "double": "Double", "split": "Split", "surrender": "Surrender"}[action],
-            key=f"act_{round_state['id']}_{hand_index}_{action}",
-            type="primary" if action == recommended else "secondary",
-            use_container_width=True,
-        ):
-            bj.apply_player_action(game, action, analysis)
-            bj.commit_round_to_history(game)
-            st.rerun()
 
 
 def _draw_round_form(game: dict[str, Any]) -> None:
@@ -442,17 +464,102 @@ def _draw_round_form(game: dict[str, Any]) -> None:
         return
     previous = round_state and round_state.get("phase") == "complete"
     if previous:
-        st.markdown("### Next hand")
-    wager_col, deal_col = st.columns([1, 1])
-    wager = wager_col.number_input("Wager (units)", min_value=1.0, max_value=10000.0, value=10.0, step=1.0, key="wager_input")
-    if deal_col.button("Deal hand", type="primary", use_container_width=True, key="deal_hand"):
-        try:
-            bj.deal_round(game, float(wager))
-            bj.commit_round_to_history(game)
-            st.rerun()
-        except ValueError as error:
-            st.error(str(error))
-    st.caption("Wager units are practice bookkeeping only. They do not represent a real-money balance.")
+        st.markdown("### Place your next wager")
+    history_started = bool(game.get("history")) or int(game["shoe"].get("rounds", 0)) > 0
+    with st.container(key="table_controls"):
+        st.markdown('<div class="eyebrow">Place wager · Deal</div>', unsafe_allow_html=True)
+        balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
+        st.session_state.setdefault("starting_balance_input", int(game.get("starting_balance", DEFAULT_STARTING_BALANCE)))
+        if not history_started and balance == float(game.get("starting_balance", DEFAULT_STARTING_BALANCE)):
+            starting_balance = st.select_slider(
+                "Starting balance",
+                options=list(range(1000, 10001, 500)),
+                format_func=lambda amount: f"{amount:,} credits",
+                key="starting_balance_input",
+                help="Choose your practice bankroll before your first hand. These credits have no cash value.",
+            )
+            game["starting_balance"] = int(starting_balance)
+            game["balance"] = float(starting_balance)
+        else:
+            st.select_slider(
+                "Starting balance",
+                options=list(range(1000, 10001, 500)),
+                format_func=lambda amount: f"{amount:,} credits",
+                key="starting_balance_input",
+                disabled=True,
+                help="The starting balance is fixed after the first hand so the saved session remains consistent.",
+            )
+        balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
+        st.session_state.setdefault("wager_input", min(10.0, max(1.0, balance)))
+        wager_key_value = float(st.session_state.get("wager_input", min(10.0, max(1.0, balance))))
+        if wager_key_value > max(1.0, balance):
+            st.session_state["wager_input"] = max(1.0, balance)
+        st.number_input(
+            "Wager (credits)",
+            min_value=1.0,
+            max_value=max(1.0, balance),
+            step=1.0,
+            key="wager_input",
+            help="The main wager is reserved while the hand is in progress. Doubles, splits, and insurance need enough additional available credits.",
+        )
+        st.caption("Practice credits only; no real-money betting. Your current wager is limited by your balance.")
+        if balance < 1:
+            st.warning("Your practice balance is empty. Reload practice chips to start a fresh shoe; your hand history will stay saved.")
+            if st.button("Reload practice chips · new shoe", type="primary", use_container_width=True, key="reload_practice_chips"):
+                game["balance"] = float(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
+                game["shoe"] = bj.new_shoe(game["rules"])
+                game["round"] = None
+                st.rerun()
+            return
+        if st.button("Deal hand", type="primary", use_container_width=True, key="deal_hand"):
+            wager = float(st.session_state["wager_input"])
+            game["starting_balance"] = int(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
+            try:
+                bj.deal_round(game, wager)
+                bj.commit_round_to_history(game)
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+
+
+def _action_buttons(game: dict[str, Any], actions: list[str], key_prefix: str) -> str | None:
+    selected = None
+    labels = {"stand": "Stand", "hit": "Hit", "double": "Double", "split": "Split", "surrender": "Surrender"}
+    with st.container(key="table_controls"):
+        st.markdown('<div class="eyebrow">Your move · Legal actions</div>', unsafe_allow_html=True)
+        for row_start in range(0, len(actions), 3):
+            row_actions = actions[row_start : row_start + 3]
+            button_cols = st.columns(len(row_actions))
+            for index, action in enumerate(row_actions):
+                if button_cols[index].button(
+                    labels[action],
+                    key=f"{key_prefix}_{action}",
+                    type="primary",
+                    use_container_width=True,
+                ):
+                    selected = action
+    return selected
+
+
+def _show_insurance_math(info: dict[str, Any]) -> None:
+    probability = info["dealer_blackjack_probability"]
+    ev = info["insurance_ev_per_main_wager"]
+    st.markdown("### Insurance math")
+    st.write(
+        f"Dealer blackjack chance: **{probability*100:.2f}%** from {info['unseen_total']} unseen cards. "
+        f"Take insurance EV: **{ev:+.3f}** · Decline insurance EV: **+0.000** units per unit of the main wager."
+    )
+    st.markdown(f'<div class="recommendation"><b>Recommended:</b> {info["recommended"].title()}</div>', unsafe_allow_html=True)
+    if not info.get("take_available", True):
+        st.info("There are not enough available credits to take insurance, so declining is the recommended legal choice.")
+    with st.expander("Why this insurance recommendation?", expanded=False):
+        st.markdown(
+            "The hidden dealer card remains included among the unseen cards. Insurance wins +1 unit when the dealer has blackjack and loses 0.5 units otherwise, so its break-even probability is 33.33%."
+        )
+        st.markdown(
+            f"EV = ({probability:.4f} × +1.0) + ({1-probability:.4f} × −0.5) = **{ev:+.4f} units**. "
+            f"The current calculation recommends **{info['recommended']}**."
+        )
 
 
 def render_play(game: dict[str, Any]) -> None:
@@ -462,46 +569,69 @@ def render_play(game: dict[str, Any]) -> None:
         if current and current["phase"] == "complete":
             net = float(current.get("total_net", 0.0))
             tone = "positive" if net > 0 else "negative" if net < 0 else "neutral"
-            st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} units net</b> · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} credits net</b> · Balance {float(game.get("balance", 0)):,.0f} credits · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
         _draw_round_form(game)
         return
 
     if current["phase"] == "insurance":
-        info = bj.insurance_analysis(current, game["shoe"])
-        p = info["dealer_blackjack_probability"]
-        ev = info["insurance_ev_per_main_wager"]
+        available = bj.available_balance(game)
+        insurance_cost = float(current["initial_wager"]) * 0.5
+        info = bj.insurance_analysis(
+            current, game["shoe"], can_take=available >= insurance_cost
+        )
         st.markdown("### Insurance decision")
-        st.info(f"Dealer blackjack chance: **{p*100:.2f}%** from {info['unseen_total']} unseen cards. Insurance EV: **{ev:+.3f} units per main wager**. At standard 2:1 payout, the break-even probability is 33.33%.")
-        if ev > 0:
-            st.markdown(f'<div class="recommendation">Calculated EV favors insurance: {ev:+.3f} per main wager.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="recommendation">Calculated EV favors declining insurance: {ev:+.3f} per main wager.</div>', unsafe_allow_html=True)
-        with st.expander("Insurance calculation"):
-            st.markdown("Take insurance and win **+1.0 unit** relative to the main wager when the dealer has blackjack; otherwise lose **−0.5 unit**. The displayed probability is exact from the current unseen composition, including the hidden card where appropriate.")
-            st.markdown(f"EV = ({p:.4f} × +1.0) + ({1-p:.4f} × −0.5) = **{ev:+.4f} units**.")
-        c1, c2 = st.columns(2)
-        for col, take, label in [(c1, True, "Take insurance"), (c2, False, "Decline insurance")]:
-            if col.button(label, type="primary" if take == (info["recommended"] == "take insurance") else "secondary", key=f"insurance_{current['id']}_{take}", use_container_width=True):
+        with st.container(key="table_controls"):
+            st.markdown('<div class="eyebrow">Optional side bet · Dealer shows an Ace</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            take = c1.button(
+                "Take insurance",
+                type="primary",
+                key=f"insurance_{current['id']}_True",
+                use_container_width=True,
+                disabled=available < insurance_cost,
+            )
+            decline = c2.button(
+                "Decline insurance",
+                type="primary",
+                key=f"insurance_{current['id']}_False",
+                use_container_width=True,
+            )
+            if available < insurance_cost:
+                st.caption(f"Insurance needs {insurance_cost:,.0f} additional credits; {available:,.0f} are available.")
+        show_math = st.toggle("Show hand math", value=False, key=f"show_insurance_math_{current['id']}")
+        if show_math:
+            _show_insurance_math(info)
+        if take or decline:
+            try:
                 bj.choose_insurance(game, take, info)
                 bj.commit_round_to_history(game)
                 st.rerun()
+            except ValueError as error:
+                st.error(str(error))
         return
 
     if current["phase"] == "player":
         index = current["current_hand"]
-        analysis = get_analysis(game, index)
-        show_decision_panel(game, analysis, index)
+        legal = bj.legal_actions(current, index, bj.available_balance(game))
+        selected = _action_buttons(game, legal, f"act_{current['id']}_{index}")
+        show_math = st.toggle("Show hand math", value=False, key=f"show_hand_math_{current['id']}_{index}")
+        if show_math:
+            show_hand_math(game, get_analysis(game, index), index)
+        if selected:
+            analysis = get_analysis(game, index)
+            bj.apply_player_action(game, selected, analysis)
+            bj.commit_round_to_history(game)
+            st.rerun()
         return
 
     if current["phase"] == "dealer":
-        st.markdown("### Dealer's turn")
-        st.caption("All player hands are finished. Reveal the hole card and complete the dealer hand using the active soft-17 rule.")
-        if st.button("Play dealer turn", type="primary", key=f"dealer_{current['id']}"):
-            bj.play_dealer(game)
-            bj.commit_round_to_history(game)
-            st.rerun()
-
-
+        with st.container(key="table_controls"):
+            st.markdown('<div class="eyebrow">Dealer turn</div>', unsafe_allow_html=True)
+            st.caption("Your hands are set. Reveal the dealer card and finish the hand under the active table rules.")
+            if st.button("Play dealer turn", type="primary", key=f"dealer_{current['id']}", use_container_width=True):
+                bj.play_dealer(game)
+                bj.commit_round_to_history(game)
+                st.rerun()
 def _preset_changed() -> None:
     selected = st.session_state.get("preset_choice", "Custom rules")
     if selected not in PRESETS:
@@ -625,7 +755,7 @@ def render_history(game: dict[str, Any]) -> None:
     metrics[2].metric("Wins", summary["wins"])
     metrics[3].metric("Losses", summary["losses"])
     metrics[4].metric("Pushes", summary["pushes"])
-    metrics[5].metric("Net units", f"{summary['net']:+.2f}")
+    metrics[5].metric("Net credits", f"{summary['net']:+.2f}")
     if summary["rounds"]:
         st.metric("Player decisions matching EV recommendation", f"{summary['decision_accuracy']*100:.1f}%")
 
@@ -633,6 +763,8 @@ def render_history(game: dict[str, Any]) -> None:
         "app": APP_TITLE,
         "version": 1,
         "exported_at": bj._timestamp(),
+        "starting_balance": game.get("starting_balance", DEFAULT_STARTING_BALANCE),
+        "balance": game.get("balance", DEFAULT_STARTING_BALANCE),
         "active_rules": game["rules"],
         "draft_rules": game.get("draft_rules", game["rules"]),
         "current_shoe": {
@@ -650,6 +782,10 @@ def render_history(game: dict[str, Any]) -> None:
         mime="application/json",
         key="download_session",
     )
+    st.caption(
+        f"Starting balance: {float(game.get('starting_balance', DEFAULT_STARTING_BALANCE)):,.0f} credits · "
+        f"Current balance: {float(game.get('balance', DEFAULT_STARTING_BALANCE)):,.0f} credits."
+    )
     if not history:
         st.info("Your first completed hand will appear here with its rule and shoe snapshots.")
         return
@@ -657,16 +793,18 @@ def render_history(game: dict[str, Any]) -> None:
         actual_number = len(history) - number + 1
         net = float(hand.get("total_net", 0.0))
         result = "WIN" if net > 0 else "LOSS" if net < 0 else "PUSH"
-        with st.expander(f"Hand {actual_number} · {result} {net:+.2f} units · Shoe {hand.get('shoe_id', '?')} · {hand.get('completed_at', '')[:16].replace('T', ' ')}"):
+        with st.expander(f"Hand {actual_number} · {result} {net:+.2f} credits · Shoe {hand.get('shoe_id', '?')} · {hand.get('completed_at', '')[:16].replace('T', ' ')}"):
             st.markdown(f"**Rules:** {hand['rules']['name']} · {hand['rules']['decks']} deck(s) · {hand['rules']['blackjack_payout']} blackjack · {hand['rules']['dealer_soft_17']} · {hand['rules']['dealer_mode']}")
-            st.markdown(f"**Dealer:** {' · '.join(hand.get('dealer_cards', []))} ({hand.get('dealer_result', '')})  \n**Starting wager:** {hand['initial_wager']:g} units  ·  **Total net:** {net:+.2f} units  ·  **Shoe:** {hand.get('shoe_id', '?')}")
+            st.markdown(f"**Dealer:** {' · '.join(hand.get('dealer_cards', []))} ({hand.get('dealer_result', '')})  \n**Starting wager:** {hand['initial_wager']:g} credits  ·  **Total net:** {net:+.2f} credits  ·  **Shoe:** {hand.get('shoe_id', '?')}")
+            if "balance_after" in hand:
+                st.markdown(f"**Practice balance:** {float(hand.get('balance_before', 0)):,.0f} → {float(hand['balance_after']):,.0f} credits")
             shoe_state = hand.get("shoe_state", {})
             st.markdown(f"**Shoe state:** {shoe_state.get('cards_remaining_before', '?')} physical cards before the deal → {shoe_state.get('cards_remaining_after', '?')} after dealer play.")
             for hand_index, player_hand in enumerate(hand.get("hands", []), 1):
                 cards = " · ".join(player_hand.get("cards", []))
-                st.markdown(f"**Player hand {hand_index}:** {cards} · actions: {', '.join(player_hand.get('actions', [])) or 'natural / automatic'} · {player_hand.get('outcome', '')} · net {float(player_hand.get('net', 0)):+.2f}")
+                st.markdown(f"**Player hand {hand_index}:** {cards} · actions: {', '.join(player_hand.get('actions', [])) or 'natural / automatic'} · {player_hand.get('outcome', '')} · net {float(player_hand.get('net', 0)):+.2f} credits")
             if hand.get("insurance_taken"):
-                st.markdown(f"**Insurance:** taken · net {float(hand.get('insurance_net', 0)):+.2f} units")
+                st.markdown(f"**Insurance:** taken · net {float(hand.get('insurance_net', 0)):+.2f} credits")
             decisions = hand.get("decisions", [])
             if decisions:
                 st.markdown("**Decision snapshots**")
@@ -697,7 +835,7 @@ def render_method() -> None:
 
         **Player action EV** is estimated net profit from the main hand, in units of the current hand wager. A split EV includes both hands created by the split, per one unit of the hand being considered. Insurance has a separate EV per unit of the original main wager. Each completed decision stores the then-current unknown-card composition and analysis, so later shoes or rule changes do not rewrite earlier recommendations.
 
-        **Immediate bust chance** and **insurance probability** are calculated exactly from the current unseen card counts. Dealer outcome percentages and player action EVs are **finite-shoe Monte Carlo estimates** with standard errors shown. For each candidate action, simulations draw without replacement; after that candidate action, the rollout uses a rule-aware basic-strategy continuation to finish the player hand(s), then plays the dealer under the selected rules. The recommendation is the action with the highest estimated EV under that continuation. It is not an exact globally optimal solver, and close EVs may be indistinguishable at the displayed sample count.
+        **Immediate bust chance** and **insurance probability** are calculated exactly from the current unseen card counts. Dealer outcome percentages and player action EVs are **finite-shoe Monte Carlo estimates** with standard errors shown. For each candidate action, simulations draw without replacement; after that candidate action, the rollout uses a rule-aware basic-strategy continuation to finish the player hand(s), then plays the dealer under the selected rules. The available practice bankroll limits later doubles and splits; an unfunded continuation double or split falls back to a hit, while one-card split aces stand. The recommendation is the action with the highest estimated EV under that continuation. It is not an exact globally optimal solver, and close EVs may be indistinguishable at the displayed sample count.
 
         ### Rule assumptions
 
@@ -735,6 +873,7 @@ def render_sidebar(game: dict[str, Any]) -> bool:
                 st.session_state.pop("_decision_cache", None)
                 st.session_state.pop("preset_choice", None)
                 st.session_state.pop("wager_input", None)
+                st.session_state.pop("starting_balance_input", None)
                 for form_key in RULE_FORM_KEYS:
                     st.session_state.pop(rule_widget_key(form_key), None)
                 return True
@@ -742,7 +881,7 @@ def render_sidebar(game: dict[str, Any]) -> bool:
                 st.session_state["_confirm_erase"] = False
                 st.rerun()
         st.markdown("---")
-        st.caption("Practice tool only · no real-money account or balance")
+        st.caption("Practice credits only · no real-money play")
     return False
 
 

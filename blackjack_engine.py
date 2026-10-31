@@ -56,6 +56,22 @@ def new_shoe(rules: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def reserved_balance(game: dict[str, Any]) -> float:
+    """Credits committed to the unfinished hand and its side bet."""
+    round_state = game.get("round")
+    if not round_state or round_state.get("phase") == "complete":
+        return 0.0
+    committed = sum(float(hand.get("wager", 0.0)) for hand in round_state.get("hands", []))
+    if round_state.get("insurance_taken"):
+        committed += float(round_state.get("initial_wager", 0.0)) * 0.5
+    return committed
+
+
+def available_balance(game: dict[str, Any]) -> float:
+    """Credits not already committed to the current unfinished hand."""
+    return max(0.0, float(game.get("balance", game.get("starting_balance", 2500.0))) - reserved_balance(game))
+
+
 def _timestamp() -> str:
     from datetime import datetime, timezone
 
@@ -135,7 +151,9 @@ def double_allowed(cards: list[str], hand: dict[str, Any], rules: dict[str, Any]
     return False
 
 
-def legal_actions(round_state: dict[str, Any], hand_index: int) -> list[str]:
+def legal_actions(
+    round_state: dict[str, Any], hand_index: int, available: float | None = None
+) -> list[str]:
     hand = round_state["hands"][hand_index]
     rules = round_state["rules"]
     cards = hand["cards"]
@@ -144,13 +162,19 @@ def legal_actions(round_state: dict[str, Any], hand_index: int) -> list[str]:
         return []
     if hand.get("split_aces") and rules["split_aces_one_card"]:
         actions = ["stand"]
-        if split_allowed(cards, hand, rules, len(round_state["hands"])):
+        if split_allowed(cards, hand, rules, len(round_state["hands"])) and (
+            available is None or available >= float(hand["wager"])
+        ):
             actions.append("split")
         return actions
     actions = ["stand", "hit"]
-    if double_allowed(cards, hand, rules):
+    if double_allowed(cards, hand, rules) and (
+        available is None or available >= float(hand["wager"])
+    ):
         actions.append("double")
-    if split_allowed(cards, hand, rules, len(round_state["hands"])):
+    if split_allowed(cards, hand, rules, len(round_state["hands"])) and (
+        available is None or available >= float(hand["wager"])
+    ):
         actions.append("split")
     if rules["surrender"] and not hand.get("from_split") and len(cards) == 2:
         actions.append("surrender")
@@ -319,6 +343,7 @@ def _play_rollout_hands(
     rules: dict[str, Any],
     rng: random.Random,
     total_hand_count: int,
+    extra_budget: float | None = None,
     max_draws: int = 20,
 ) -> list[dict[str, Any]]:
     queue = [deepcopy(hand) for hand in starting_hands]
@@ -356,7 +381,16 @@ def _play_rollout_hands(
                 total_hand_count,
             )
 
-        if action == "split" and split_allowed(cards, hand, rules, total_hand_count):
+        if action == "split" and extra_budget is not None and extra_budget < float(hand.get("bet", 1.0)):
+            action = "stand" if hand.get("split_aces") and rules["split_aces_one_card"] else "hit"
+        if action == "double" and extra_budget is not None and extra_budget < float(hand.get("bet", 1.0)):
+            action = "hit"
+
+        if action == "split" and split_allowed(cards, hand, rules, total_hand_count) and (
+            extra_budget is None or extra_budget >= float(hand.get("bet", 1.0))
+        ):
+            if extra_budget is not None:
+                extra_budget -= float(hand.get("bet", 1.0))
             is_aces = cards[0] == "A" or (rules.get("split_match") == "Any ten-value pair" and card_value(cards[0]) == 11)
             child_a = {
                 "cards": [cards[0]],
@@ -375,7 +409,11 @@ def _play_rollout_hands(
             queue[index : index + 1] = [child_a, child_b]
             total_hand_count += 1
             continue
-        if action == "double" and _can_double(cards, bool(hand.get("from_split")), rules):
+        if action == "double" and _can_double(cards, bool(hand.get("from_split")), rules) and (
+            extra_budget is None or extra_budget >= float(hand.get("bet", 1.0))
+        ):
+            if extra_budget is not None:
+                extra_budget -= float(hand.get("bet", 1.0))
             hand["cards"].append(draw_card(counts, rng))
             hand["bet"] = float(hand.get("bet", 1.0)) * 2
             hand["done"] = True
@@ -384,6 +422,10 @@ def _play_rollout_hands(
             continue
         if action == "surrender" and not hand.get("from_split"):
             hand["surrendered"] = True
+            hand["done"] = True
+            index += 1
+            continue
+        if action == "split" and hand.get("split_aces") and rules["split_aces_one_card"]:
             hand["done"] = True
             index += 1
             continue
@@ -447,6 +489,7 @@ def _evaluate_one_sample(
     peek_no_blackjack: bool,
     total_hand_count: int,
     rng: random.Random,
+    available: float | None = None,
 ) -> float:
     remaining = list(counts)
     hole: str | None = None
@@ -457,6 +500,9 @@ def _evaluate_one_sample(
     from_split = bool(hand.get("from_split"))
     split_aces = bool(hand.get("split_aces"))
     unit_bet = 1.0
+    extra_budget = (
+        None if available is None else max(0.0, float(available) / max(0.01, float(hand.get("wager", 1.0))))
+    )
     if action == "surrender":
         played_hands = [{"cards": current_cards, "from_split": from_split, "bet": unit_bet, "surrendered": True}]
     elif action == "stand":
@@ -471,7 +517,7 @@ def _evaluate_one_sample(
             played_hands = starting
         else:
             played_hands = _play_rollout_hands(
-                starting, remaining, dealer_up, rules, rng, total_hand_count
+                starting, remaining, dealer_up, rules, rng, total_hand_count, extra_budget
             )
     elif action == "split":
         is_aces = current_cards[0] == "A"
@@ -479,8 +525,10 @@ def _evaluate_one_sample(
             {"cards": [current_cards[0]], "from_split": True, "split_aces": is_aces, "needs_card": True, "bet": unit_bet},
             {"cards": [current_cards[1]], "from_split": True, "split_aces": is_aces, "needs_card": True, "bet": unit_bet},
         ]
+        if extra_budget is not None:
+            extra_budget = max(0.0, extra_budget - unit_bet)
         played_hands = _play_rollout_hands(
-            children, remaining, dealer_up, rules, rng, total_hand_count + 1
+            children, remaining, dealer_up, rules, rng, total_hand_count + 1, extra_budget
         )
     else:
         raise ValueError(f"Unknown action: {action}")
@@ -500,9 +548,10 @@ def estimate_action_evs(
     hand_index: int,
     counts: list[int],
     simulations: int = 1000,
+    available: float | None = None,
 ) -> dict[str, dict[str, float]]:
     hand = round_state["hands"][hand_index]
-    actions = legal_actions(round_state, hand_index)
+    actions = legal_actions(round_state, hand_index, available)
     fingerprint = {
         "hand": hand["cards"],
         "from_split": hand.get("from_split", False),
@@ -529,6 +578,7 @@ def estimate_action_evs(
                 _has_peek_constraint(round_state),
                 len(round_state["hands"]),
                 rng,
+                available,
             )
             for _ in range(simulations)
         ]
@@ -559,10 +609,15 @@ def dealer_distribution(
     return {key: value / simulations for key, value in outcomes.items()}
 
 
-def decision_analysis(round_state: dict[str, Any], shoe: dict[str, Any], hand_index: int) -> dict[str, Any]:
+def decision_analysis(
+    round_state: dict[str, Any],
+    shoe: dict[str, Any],
+    hand_index: int,
+    available: float | None = None,
+) -> dict[str, Any]:
     counts = unseen_counts(shoe, round_state)
-    actions = legal_actions(round_state, hand_index)
-    evs = estimate_action_evs(round_state, hand_index, counts)
+    actions = legal_actions(round_state, hand_index, available)
+    evs = estimate_action_evs(round_state, hand_index, counts, available=available)
     recommendation = max(evs, key=lambda action: evs[action]["ev"])
     player_cards = round_state["hands"][hand_index]["cards"]
     distribution = dealer_distribution(round_state, counts)
@@ -585,7 +640,9 @@ def decision_analysis(round_state: dict[str, Any], shoe: dict[str, Any], hand_in
     }
 
 
-def insurance_analysis(round_state: dict[str, Any], shoe: dict[str, Any]) -> dict[str, Any]:
+def insurance_analysis(
+    round_state: dict[str, Any], shoe: dict[str, Any], can_take: bool = True
+) -> dict[str, Any]:
     counts = unseen_counts(shoe, round_state)
     total = sum(counts)
     up = round_state["dealer_up"]
@@ -595,7 +652,8 @@ def insurance_analysis(round_state: dict[str, Any], shoe: dict[str, Any]) -> dic
     return {
         "dealer_blackjack_probability": probability,
         "insurance_ev_per_main_wager": ev,
-        "recommended": "take insurance" if ev > 0 else "decline insurance",
+        "recommended": "take insurance" if ev > 0 and can_take else "decline insurance",
+        "take_available": can_take,
         "unseen_counts": counts,
         "unseen_total": total,
         "physical_remaining": sum(shoe["cards"]),
@@ -625,6 +683,9 @@ def _next_phase_after_peek(round_state: dict[str, Any]) -> None:
 
 
 def deal_round(game: dict[str, Any], wager: float) -> None:
+    balance = float(game.get("balance", game.get("starting_balance", 2500.0)))
+    if wager <= 0 or wager > balance:
+        raise ValueError("The wager must be at least 1 credit and no larger than your balance.")
     shoe = game["shoe"]
     rules = game["rules"]
     if game.get("round") and game["round"].get("phase") != "complete":
@@ -645,6 +706,7 @@ def deal_round(game: dict[str, Any], wager: float) -> None:
         "shoe_id": shoe["id"],
         "rules": deepcopy(rules),
         "initial_wager": float(wager),
+        "balance_before": balance,
         "dealer_up": dealer_up,
         "dealer_hole": hole,
         "dealer_cards": [dealer_up],
@@ -681,6 +743,9 @@ def choose_insurance(game: dict[str, Any], take: bool, analysis: dict[str, Any])
     round_state = game["round"]
     if not round_state or round_state["phase"] != "insurance":
         return
+    insurance_cost = float(round_state["initial_wager"]) * 0.5
+    if take and available_balance(game) < insurance_cost:
+        raise ValueError("There are not enough available credits for insurance.")
     round_state["insurance_taken"] = bool(take)
     round_state["insurance_ev"] = analysis["insurance_ev_per_main_wager"]
     round_state["decisions"].append(
@@ -727,7 +792,7 @@ def apply_player_action(
         return
     index = int(round_state["current_hand"])
     hand = round_state["hands"][index]
-    actions = legal_actions(round_state, index)
+    actions = legal_actions(round_state, index, available_balance(game))
     if action not in actions:
         raise ValueError(f"{action} is not legal for this hand.")
     rng = random.SystemRandom()
@@ -900,6 +965,12 @@ def commit_round_to_history(game: dict[str, Any]) -> None:
     shoe = game["shoe"]
     if round_state.get("shoe_remaining_after") is None:
         round_state["shoe_remaining_after"] = sum(shoe["cards"])
+    if not round_state.get("balance_settled"):
+        balance = float(game.get("balance", game.get("starting_balance", 2500.0)))
+        round_state.setdefault("balance_before", balance)
+        game["balance"] = balance + float(round_state.get("total_net", 0.0))
+        round_state["balance_after"] = game["balance"]
+        round_state["balance_settled"] = True
     round_state["shoe_state"] = {
         "shoe_id": round_state["shoe_id"],
         "cards_remaining_before": round_state["shoe_remaining_before"],
