@@ -106,6 +106,7 @@ def make_game_data() -> dict[str, Any]:
         "shoe": bj.new_shoe(rules),
         "round": None,
         "history": [],
+        "show_hand_math": False,
     }
 
 
@@ -188,7 +189,9 @@ def hydrate_game() -> bool:
         data.setdefault("starting_balance", DEFAULT_STARTING_BALANCE)
         recorded_net = sum(float(hand.get("total_net", 0.0)) for hand in history)
         data.setdefault("balance", float(data["starting_balance"]) + recorded_net)
+    data.setdefault("show_hand_math", False)
     st.session_state.setdefault("starting_balance_input", int(data["starting_balance"]))
+    st.session_state["show_hand_math"] = bool(data["show_hand_math"])
     st.session_state["game_data"] = data
     st.session_state["_game_hydrated"] = True
     return True
@@ -609,7 +612,12 @@ def render_play(game: dict[str, Any]) -> None:
             )
             if available < insurance_cost:
                 st.caption(f"Insurance needs {insurance_cost:,.0f} additional credits; {available:,.0f} are available.")
-        show_math = st.toggle("Show hand math", value=False, key=f"show_insurance_math_{current['id']}")
+        show_math = st.toggle(
+            "Show hand math",
+            key="show_hand_math",
+            help="Keep the math panel open across hands until you switch it off.",
+        )
+        game["show_hand_math"] = bool(show_math)
         if show_math:
             _show_insurance_math(info)
         if take or decline:
@@ -626,7 +634,12 @@ def render_play(game: dict[str, Any]) -> None:
         index = current["current_hand"]
         legal = bj.legal_actions(current, index, bj.available_balance(game))
         selected = _action_buttons(game, legal, f"act_{current['id']}_{index}")
-        show_math = st.toggle("Show hand math", value=False, key=f"show_hand_math_{current['id']}_{index}")
+        show_math = st.toggle(
+            "Show hand math",
+            key="show_hand_math",
+            help="Keep the math panel open across hands until you switch it off.",
+        )
+        game["show_hand_math"] = bool(show_math)
         if show_math:
             show_hand_math(game, get_analysis(game, index), index)
         if selected:
@@ -888,6 +901,7 @@ def render_sidebar(game: dict[str, Any]) -> bool:
                 st.session_state.pop("preset_choice", None)
                 st.session_state.pop("wager_input", None)
                 st.session_state.pop("starting_balance_input", None)
+                st.session_state.pop("show_hand_math", None)
                 for form_key in RULE_FORM_KEYS:
                     st.session_state.pop(rule_widget_key(form_key), None)
                 return True
