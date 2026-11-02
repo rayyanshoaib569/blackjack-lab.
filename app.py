@@ -306,11 +306,28 @@ def show_shoe_composition(game: dict[str, Any], round_state: dict[str, Any] | No
         st.caption(f"{total_unseen} cards in this composition snapshot.")
 
 
+def show_shoe_snapshot(game: dict[str, Any], round_state: dict[str, Any] | None) -> None:
+    """Render the compact shoe status row after the current table controls.
+
+    Keeping this separate from ``show_table`` lets the player's legal actions
+    occupy the first row beneath the felt table. The shoe information remains
+    available, but is deliberately placed at the bottom of the play view so it
+    does not compete with the decision controls.
+    """
+    shoe = game["shoe"]
+    remaining = sum(shoe["cards"])
+    shoe_fraction = remaining / max(1, shoe["initial_total"])
+    shoe_cols = st.columns(3)
+    shoe_cols[0].metric("Shoe used", f"{(1-shoe_fraction)*100:.0f}%")
+    shoe_cols[1].metric("Hands in shoe", shoe["rounds"])
+    shoe_cols[2].metric("Dealer rule", game["rules"]["dealer_soft_17"].replace(" soft", ""))
+    show_shoe_composition(game, round_state)
+
+
 def show_table(game: dict[str, Any]) -> None:
     round_state = game.get("round")
     shoe = game["shoe"]
     remaining = sum(shoe["cards"])
-    shoe_fraction = remaining / max(1, shoe["initial_total"])
     active_round = bool(round_state and round_state.get("phase") != "complete")
     wager_now = sum(float(hand.get("wager", 0.0)) for hand in round_state.get("hands", [])) if active_round else 0.0
     insurance_now = float(round_state.get("initial_wager", 0.0)) * 0.5 if active_round and round_state.get("insurance_taken") else 0.0
@@ -356,13 +373,6 @@ def show_table(game: dict[str, Any]) -> None:
             f'<div class="felt-table"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div><div class="table-label">Dealer</div><div class="subtle">{dealer_note}</div></div><span class="seat-total">{dealer_value}</span></div>{dealer_html}</section><section class="table-seat player-seat"><div class="seat-heading"><div><div class="table-label">Your seat</div><div class="subtle">{len(round_state["hands"])} hand(s) · {round_state["phase"].replace("_", " ").title()}</div></div></div>{"".join(player_html)}</section></div></div>',
             unsafe_allow_html=True,
         )
-    shoe_cols = st.columns(3)
-    shoe_cols[0].metric("Shoe used", f"{(1-shoe_fraction)*100:.0f}%")
-    shoe_cols[1].metric("Hands in shoe", shoe["rounds"])
-    shoe_cols[2].metric("Dealer rule", game["rules"]["dealer_soft_17"].replace(" soft", ""))
-    show_shoe_composition(game, round_state)
-
-
 def _decision_cache_key(game: dict[str, Any], hand_index: int) -> str:
     round_state = game["round"]
     hand = round_state["hands"][hand_index]
@@ -571,6 +581,7 @@ def render_play(game: dict[str, Any]) -> None:
             tone = "positive" if net > 0 else "negative" if net < 0 else "neutral"
             st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} credits net</b> · Balance {float(game.get("balance", 0)):,.0f} credits · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
         _draw_round_form(game)
+        show_shoe_snapshot(game, current)
         return
 
     if current["phase"] == "insurance":
@@ -608,6 +619,7 @@ def render_play(game: dict[str, Any]) -> None:
                 st.rerun()
             except ValueError as error:
                 st.error(str(error))
+        show_shoe_snapshot(game, current)
         return
 
     if current["phase"] == "player":
@@ -622,6 +634,7 @@ def render_play(game: dict[str, Any]) -> None:
             bj.apply_player_action(game, selected, analysis)
             bj.commit_round_to_history(game)
             st.rerun()
+        show_shoe_snapshot(game, current)
         return
 
     if current["phase"] == "dealer":
@@ -632,6 +645,7 @@ def render_play(game: dict[str, Any]) -> None:
                 bj.play_dealer(game)
                 bj.commit_round_to_history(game)
                 st.rerun()
+        show_shoe_snapshot(game, current)
 def _preset_changed() -> None:
     selected = st.session_state.get("preset_choice", "Custom rules")
     if selected not in PRESETS:
