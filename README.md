@@ -34,6 +34,7 @@ Open the local address printed by Streamlit. There is no database, account, or d
 ## What is included
 
 - A playable table with hit, stand, double, split, resplit, surrender, insurance, and dealer play when those actions are legal under the active rules.
+- A resume/new-game welcome dialog, chip-denomination betting controls, and automatic dealer play when the player finishes.
 - A selectable practice balance from 1,000 to 10,000 credits. Wagers, insurance, doubles, and splits are limited by the available balance; the hand history records balance movement.
 - Presets plus configurable deck count, blackjack payout, soft-17 rule, double restrictions, double after split, pair-matching rule, split-hand limit, split-ace behavior, surrender, insurance, dealer hole-card procedure, and reshuffle behavior.
 - One finite shoe carried across hands. Cards already dealt are removed from the physical shoe. The app can reshuffle automatically at the selected penetration or wait for a manual reshuffle.

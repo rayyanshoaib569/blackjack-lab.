@@ -191,6 +191,7 @@ def hydrate_game() -> bool:
         data.setdefault("balance", float(data["starting_balance"]) + recorded_net)
     data.setdefault("show_hand_math", False)
     st.session_state.setdefault("starting_balance_input", int(data["starting_balance"]))
+    st.session_state.setdefault("_welcome_menu_open", True)
     st.session_state["show_hand_math"] = bool(data["show_hand_math"])
     st.session_state["game_data"] = data
     st.session_state["_game_hydrated"] = True
@@ -256,9 +257,14 @@ def style_app() -> None:
         .player-hand { margin:.6rem 0 .9rem; padding:.45rem .55rem .65rem; border:1px solid transparent; border-radius:12px; }
         .player-hand.is-active { border-color:rgba(240,219,167,.75); background:rgba(240,219,167,.07); box-shadow:0 0 20px rgba(240,219,167,.08); }
         .st-key-table_controls { padding:1rem 1.1rem; border:1px solid rgba(216,181,109,.3); border-radius:16px; background:linear-gradient(135deg,rgba(30,45,39,.96),rgba(17,27,25,.96)); margin:.75rem 0 1rem; }
-        .st-key-table_controls .stButton button { min-height:2.8rem; font-weight:700; }
+        .st-key-table_controls .stButton button { min-height:2.8rem; font-weight:700; border-radius:999px; }
         .st-key-table_controls .stButton button[kind="primary"] { box-shadow:0 4px 14px rgba(216,181,109,.16); }
         .st-key-table_controls .stButton button:disabled { opacity:.38; }
+        .st-key-bet_chips .stButton button { width:5rem; height:5rem; min-height:5rem; border-radius:50%; border:5px dashed rgba(255,255,255,.72); box-shadow:inset 0 0 0 4px rgba(0,0,0,.15),0 5px 12px rgba(0,0,0,.28); color:#111b19; font:700 .9rem 'DM Mono',monospace; }
+        .st-key-bet_chips [data-testid="column"]:nth-child(1) button { background:radial-gradient(circle,#f4f2e8 0 48%,#a9aaa5 50%); }
+        .st-key-bet_chips [data-testid="column"]:nth-child(2) button { background:radial-gradient(circle,#edf4ff 0 48%,#176ac0 50%); }
+        .st-key-bet_chips [data-testid="column"]:nth-child(3) button { background:radial-gradient(circle,#f5f4ee 0 48%,#252827 50%); color:#111; }
+        .st-key-bet_chips [data-testid="column"]:nth-child(4) button { background:radial-gradient(circle,#eaf8ff 0 48%,#39a9e8 50%); color:#111; }
         .st-key-ev_rail { position:sticky; top:1rem; z-index:2; padding:.9rem; border:1px solid rgba(216,181,109,.16); border-radius:14px; background:rgba(16,24,23,.72); }
         .ev-rail-title { color:rgba(240,219,167,.68); text-transform:uppercase; letter-spacing:.1em; font:500 .68rem 'DM Mono',monospace; margin:0 0 .45rem; }
         .ev-rail-context { color:rgba(231,239,233,.58); font-size:.75rem; margin:0 0 .7rem; }
@@ -510,6 +516,33 @@ def show_hand_math(game: dict[str, Any], analysis: dict[str, Any], hand_index: i
         st.markdown("| Action | EV / unit | SE | Samples |\n|---|---:|---:|---:|\n" + "\n".join(ev_rows))
 
 
+def _start_new_game(game: dict[str, Any]) -> None:
+    """Start a fresh shoe and bankroll while retaining completed hand history."""
+    starting_balance = int(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
+    game["balance"] = float(starting_balance)
+    game["round"] = None
+    game["shoe"] = bj.new_shoe(game["rules"])
+    st.session_state["wager_input"] = 0.0
+    st.session_state["game_data"] = game
+    st.session_state["_welcome_menu_open"] = False
+    st.session_state.pop("_decision_cache", None)
+
+
+@st.dialog("Blackjack", width="small")
+def show_resume_dialog(game: dict[str, Any]) -> None:
+    has_saved_game = bool(game.get("history") or game.get("round"))
+    st.markdown('<div class="eyebrow">Your table is ready</div>', unsafe_allow_html=True)
+    st.markdown(f"### Balance · {float(game.get('balance', DEFAULT_STARTING_BALANCE)):,.0f} credits")
+    st.caption("Resume the saved table or deal a fresh shoe. Completed hand history stays saved.")
+    new_col, resume_col = st.columns(2)
+    if new_col.button("New game", use_container_width=True, key="welcome_new_game"):
+        _start_new_game(game)
+        st.rerun()
+    if resume_col.button("Resume", type="primary", use_container_width=True, key="welcome_resume", disabled=not has_saved_game):
+        st.session_state["_welcome_menu_open"] = False
+        st.rerun()
+
+
 def _draw_round_form(game: dict[str, Any]) -> None:
     round_state = game.get("round")
     if round_state and round_state["phase"] != "complete":
@@ -519,7 +552,7 @@ def _draw_round_form(game: dict[str, Any]) -> None:
         st.markdown("### Place your next wager")
     history_started = bool(game.get("history")) or int(game["shoe"].get("rounds", 0)) > 0
     with st.container(key="table_controls"):
-        st.markdown('<div class="eyebrow">Place wager · Deal</div>', unsafe_allow_html=True)
+        st.markdown('<div class="eyebrow">Place your bets</div>', unsafe_allow_html=True)
         balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
         st.session_state.setdefault("starting_balance_input", int(game.get("starting_balance", DEFAULT_STARTING_BALANCE)))
         if not history_started and balance == float(game.get("starting_balance", DEFAULT_STARTING_BALANCE)):
@@ -542,19 +575,20 @@ def _draw_round_form(game: dict[str, Any]) -> None:
                 help="The starting balance is fixed after the first hand so the saved session remains consistent.",
             )
         balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
-        st.session_state.setdefault("wager_input", min(10.0, max(1.0, balance)))
-        wager_key_value = float(st.session_state.get("wager_input", min(10.0, max(1.0, balance))))
-        if wager_key_value > max(1.0, balance):
-            st.session_state["wager_input"] = max(1.0, balance)
-        st.number_input(
-            "Wager (credits)",
-            min_value=1.0,
-            max_value=max(1.0, balance),
-            step=1.0,
-            key="wager_input",
-            help="The main wager is reserved while the hand is in progress. Doubles, splits, and insurance need enough additional available credits.",
-        )
-        st.caption("Practice credits only; no real-money betting. Your current wager is limited by your balance.")
+        st.session_state.setdefault("wager_input", 0.0)
+        wager_key_value = min(balance, float(st.session_state.get("wager_input", 0.0)))
+        st.session_state["wager_input"] = wager_key_value
+        with st.container(key="bet_chips"):
+            chip_cols = st.columns(4)
+            for chip_col, amount in zip(chip_cols, (1, 10, 100, 500)):
+                if chip_col.button(f"{amount}", key=f"bet_chip_{amount}", help=f"Add {amount:,} credits to your bet"):
+                    wager_key_value = min(balance, wager_key_value + amount)
+                    st.session_state["wager_input"] = wager_key_value
+        st.caption(f"Current bet · {wager_key_value:,.0f} credits  ·  Balance · {balance:,.0f} credits")
+        if st.button("Clear bet", key="clear_bet", disabled=wager_key_value <= 0):
+            wager_key_value = 0.0
+            st.session_state["wager_input"] = wager_key_value
+        st.caption("Practice chips only · doubles, splits, and insurance use available credits.")
         if balance < 1:
             st.warning("Your practice balance is empty. Reload practice chips to start a fresh shoe; your hand history will stay saved.")
             if st.button("Reload practice chips · new shoe", type="primary", use_container_width=True, key="reload_practice_chips"):
@@ -563,8 +597,8 @@ def _draw_round_form(game: dict[str, Any]) -> None:
                 game["round"] = None
                 st.rerun()
             return
-        if st.button("Deal hand", type="primary", use_container_width=True, key="deal_hand"):
-            wager = float(st.session_state["wager_input"])
+        if st.button("Deal", type="primary", use_container_width=True, key="deal_hand", disabled=wager_key_value < 1):
+            wager = wager_key_value
             game["starting_balance"] = int(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
             try:
                 bj.deal_round(game, wager)
@@ -616,6 +650,11 @@ def _show_insurance_math(info: dict[str, Any]) -> None:
 
 def render_play(game: dict[str, Any]) -> None:
     current = game.get("round")
+    if current and current["phase"] == "dealer":
+        bj.play_dealer(game)
+        bj.commit_round_to_history(game)
+        st.rerun()
+
     analysis = None
     insurance_info = None
     if current and current["phase"] == "player":
@@ -693,16 +732,6 @@ def render_play(game: dict[str, Any]) -> None:
                 bj.commit_round_to_history(game)
                 st.rerun()
             show_shoe_snapshot(game, current)
-        elif current["phase"] == "dealer":
-            with st.container(key="table_controls"):
-                st.markdown('<div class="eyebrow">Dealer turn</div>', unsafe_allow_html=True)
-                st.caption("Your hands are set. Reveal the dealer card and finish the hand under the active table rules.")
-                if st.button("Play dealer turn", type="primary", key=f"dealer_{current['id']}", use_container_width=True):
-                    bj.play_dealer(game)
-                    bj.commit_round_to_history(game)
-                    st.rerun()
-            show_shoe_snapshot(game, current)
-
     with rail_column:
         with st.container(key="ev_rail"):
             if analysis:
@@ -960,6 +989,9 @@ def render_sidebar(game: dict[str, Any]) -> bool:
         storage_error = component_value("storage_error")
         if storage_error:
             st.warning(f"Browser local storage could not be updated: {storage_error}. Download a session backup from History.")
+        if st.button("New game", key="open_new_game", use_container_width=True):
+            st.session_state["_welcome_menu_open"] = True
+            st.rerun()
         if st.button("Erase saved data", key="request_erase", use_container_width=True):
             st.session_state["_confirm_erase"] = True
         confirm = st.session_state.get("_confirm_erase", False)
@@ -1000,6 +1032,8 @@ def main() -> None:
     game = get_game()
     if render_sidebar(game):
         game = get_game()
+    if st.session_state.get("_welcome_menu_open"):
+        show_resume_dialog(game)
     st.markdown(
         '<div class="hero"><div><div class="brand">BLACKJACK LAB · PROBABILITY IN PLAY</div><h1 style="margin:.18rem 0 .18rem">The table is your classroom.</h1><div class="hero-note">Play a real shoe. See the math behind each choice. Keep every hand on this device.</div></div><div class="eyebrow">21 · EV · Finite shoe</div></div>',
         unsafe_allow_html=True,
