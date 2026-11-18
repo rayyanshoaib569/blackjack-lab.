@@ -1,6 +1,6 @@
 # Blackjack Lab
 
-A solo blackjack practice table built with Streamlit and Python. Play a finite shoe, choose the rules before a new shoe, optionally inspect probability and expected-value estimates at each decision, and keep hand history in the browser on the device you use.
+A solo blackjack practice table built with Streamlit and Python. Play a finite shoe, choose the rules before a new shoe, see expected values beside each decision, optionally inspect detailed probabilities, and keep hand history in the browser on the device you use.
 
 ## Run locally
 
@@ -37,7 +37,7 @@ Open the local address printed by Streamlit. There is no database, account, or d
 - A selectable practice balance from 1,000 to 10,000 credits. Wagers, insurance, doubles, and splits are limited by the available balance; the hand history records balance movement.
 - Presets plus configurable deck count, blackjack payout, soft-17 rule, double restrictions, double after split, pair-matching rule, split-hand limit, split-ace behavior, surrender, insurance, dealer hole-card procedure, and reshuffle behavior.
 - One finite shoe carried across hands. Cards already dealt are removed from the physical shoe. The app can reshuffle automatically at the selected penetration or wait for a manual reshuffle.
-- A closed-by-default **Show hand math** panel with exact immediate bust and insurance probabilities, estimated dealer outcomes, EVs for legal actions, standard errors, and expandable reasoning.
+- A live side rail beside the table with expected values for each legal action on the active hand; detailed **Show hand math** adds exact immediate bust and insurance probabilities, estimated dealer outcomes, standard errors, and expandable reasoning.
 - A history view with the rules snapshot, shoe state, dealt cards, actions, result, and probabilities/EVs recorded when each decision was made.
 - Browser-local saving, a JSON session backup download, and an erase control.
 
@@ -53,7 +53,7 @@ Ranks are tracked as 2 through Ace, with four of each rank per deck (16 ten-valu
 
 During American hole-card play, the dealer's hidden card is not shown or treated as revealed. It is included in the unseen-card composition used by the analysis. If a peek rules out dealer blackjack, the simulation conditions the hidden card on that information. With European no-hole-card rules, the dealer's second card is drawn after player action.
 
-Immediate hit-bust probability and insurance probability are calculated from the current composition (including the negative-peek condition when relevant). Dealer outcome percentages and player action EVs are Monte Carlo estimates. The EV panel shows the estimated standard error and sample count. Each candidate action is sampled without replacement; after the candidate action, the player hand(s) are completed using a disclosed, rule-aware basic-strategy continuation policy, then the dealer is played under the active rules. Available practice credits also limit later doubles and splits; an unfunded rollout double or split falls back to a hit, while one-card split aces stand. The app recommends the candidate with the highest estimated EV under that continuation. This is not an exact globally optimal strategy solver, and close estimates can be statistically indistinguishable.
+Immediate hit-bust probability and insurance probability are calculated from the current composition (including the negative-peek condition when relevant). Dealer outcome percentages and player action EVs are Monte Carlo estimates. The detailed hand math view shows the estimated standard error and sample count. Each candidate action is sampled without replacement; after the candidate action, the player hand(s) are completed using a disclosed, rule-aware basic-strategy continuation policy, then the dealer is played under the active rules. Available practice credits also limit later doubles and splits; an unfunded rollout double or split falls back to a hit, while one-card split aces stand. The app recommends the candidate with the highest estimated EV under that continuation. This is not an exact globally optimal strategy solver, and close estimates can be statistically indistinguishable.
 
 EV for a main-hand action is expected **net** return per one unit of the current hand wager; a split EV includes both split hands. Insurance is shown separately as expected net return per unit of the original main wager, assuming the standard 2:1 insurance payout. Dealer blackjack against a late surrender in no-peek play loses the full wager. In no-peek and European play, additional split/double wagers also lose to dealer blackjack. All decisions save the shoe composition and estimates that existed at that moment.
 

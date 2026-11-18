@@ -259,6 +259,13 @@ def style_app() -> None:
         .st-key-table_controls .stButton button { min-height:2.8rem; font-weight:700; }
         .st-key-table_controls .stButton button[kind="primary"] { box-shadow:0 4px 14px rgba(216,181,109,.16); }
         .st-key-table_controls .stButton button:disabled { opacity:.38; }
+        .st-key-ev_rail { position:sticky; top:1rem; z-index:2; padding:.9rem; border:1px solid rgba(216,181,109,.16); border-radius:14px; background:rgba(16,24,23,.72); }
+        .ev-rail-title { color:rgba(240,219,167,.68); text-transform:uppercase; letter-spacing:.1em; font:500 .68rem 'DM Mono',monospace; margin:0 0 .45rem; }
+        .ev-rail-context { color:rgba(231,239,233,.58); font-size:.75rem; margin:0 0 .7rem; }
+        .ev-rail-row { display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem .48rem; margin:.28rem 0; border:1px solid rgba(231,215,171,.08); border-radius:8px; color:rgba(231,239,233,.65); background:rgba(255,255,255,.018); font-size:.78rem; }
+        .ev-rail-row.recommended { border-color:rgba(216,181,109,.24); background:rgba(216,181,109,.045); }
+        .ev-rail-value { color:rgba(241,226,187,.66); font:500 .78rem 'DM Mono',monospace; white-space:nowrap; }
+        .ev-rail-note { color:rgba(231,239,233,.48); font-size:.7rem; line-height:1.45; margin-top:.65rem; }
         .stButton button { border:1px solid rgba(216,181,109,.4); border-radius:10px; transition:transform .14s ease,background .14s ease,border-color .14s ease; }
         .stButton button:hover { transform:translateY(-1px); border-color:#d8b56d; background:rgba(216,181,109,.1); }
         .stButton button[kind="primary"] { background:linear-gradient(135deg,#d8b56d,#b48b3f); color:#18211d; border:0; font-weight:700; }
@@ -268,7 +275,7 @@ def style_app() -> None:
         button[data-baseweb="tab"] { color:#acb9b2; }
         button[data-baseweb="tab"][aria-selected="true"] { color:#f0dfb5; }
         [data-testid="stExpander"] { border:1px solid rgba(216,181,109,.16); border-radius:12px; background:rgba(18,27,26,.55); }
-        @media(max-width:700px) { .felt-table { border-radius:28px; padding:1.2rem 1rem; min-height:260px; } .table-seats { grid-template-columns:1fr; gap:.65rem; } .table-seat { padding:.8rem; } .playing-card { width:50px;height:72px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
+        @media(max-width:700px) { .felt-table { border-radius:28px; padding:1.2rem 1rem; min-height:260px; } .table-seats { grid-template-columns:1fr; gap:.65rem; } .table-seat { padding:.8rem; } .st-key-ev_rail { position:static; } .playing-card { width:50px;height:72px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
         </style>
         """,
         unsafe_allow_html=True,
@@ -409,6 +416,38 @@ def get_analysis(game: dict[str, Any], hand_index: int) -> dict[str, Any]:
 
 def format_ev(value: float) -> str:
     return f"{value:+.3f}"
+
+
+def show_ev_rail(analysis: dict[str, Any], context: str, *, title: str = "Action EV") -> None:
+    """Keep the current decision's option values beside the table."""
+    recommended = analysis["recommended"]
+    st.markdown(f'<div class="ev-rail-title">{title}</div><div class="ev-rail-context">{context}</div>', unsafe_allow_html=True)
+    for action in analysis["actions"]:
+        estimate = analysis["evs"][action]
+        marker = " · best" if action == recommended else ""
+        st.markdown(
+            f'<div class="ev-rail-row {"recommended" if action == recommended else ""}"><span>{action.title()}{marker}</span><span class="ev-rail-value">{format_ev(estimate["ev"])}</span></div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown('<div class="ev-rail-note">Expected net return per unit wager. Estimates can be close; the full sample and uncertainty are in hand math.</div>', unsafe_allow_html=True)
+
+
+def show_insurance_ev_rail(info: dict[str, Any], can_take: bool) -> None:
+    st.markdown('<div class="ev-rail-title">Insurance EV</div><div class="ev-rail-context">Dealer shows an Ace</div>', unsafe_allow_html=True)
+    take_note = "" if can_take else " · unavailable"
+    st.markdown(
+        f'<div class="ev-rail-row"><span>Take insurance{take_note}</span><span class="ev-rail-value">{format_ev(info["insurance_ev_per_main_wager"])}</span></div>'
+        '<div class="ev-rail-row"><span>Decline insurance</span><span class="ev-rail-value">+0.000</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(f'<div class="ev-rail-note">Recommended: {info["recommended"].title()} · per unit of the main wager.</div>', unsafe_allow_html=True)
+
+
+def show_idle_ev_rail() -> None:
+    st.markdown(
+        '<div class="ev-rail-title">Decision EV</div><div class="ev-rail-context">Option values appear here while a decision is available.</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def show_dealer_outcomes(outcomes: dict[str, float]) -> None:
@@ -577,88 +616,122 @@ def _show_insurance_math(info: dict[str, Any]) -> None:
 
 def render_play(game: dict[str, Any]) -> None:
     current = game.get("round")
-    show_table(game)
-    if not current or current["phase"] == "complete":
-        if current and current["phase"] == "complete":
-            net = float(current.get("total_net", 0.0))
-            tone = "positive" if net > 0 else "negative" if net < 0 else "neutral"
-            st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} credits net</b> · Balance {float(game.get("balance", 0)):,.0f} credits · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
-        _draw_round_form(game)
-        show_shoe_snapshot(game, current)
-        return
-
-    if current["phase"] == "insurance":
+    analysis = None
+    insurance_info = None
+    if current and current["phase"] == "player":
+        active_index = int(current["current_hand"])
+        analysis = get_analysis(game, active_index)
+    elif current and current["phase"] == "insurance":
         available = bj.available_balance(game)
         insurance_cost = float(current["initial_wager"]) * 0.5
-        info = bj.insurance_analysis(
+        insurance_info = bj.insurance_analysis(
             current, game["shoe"], can_take=available >= insurance_cost
         )
-        st.markdown("### Insurance decision")
-        with st.container(key="table_controls"):
-            st.markdown('<div class="eyebrow">Optional side bet · Dealer shows an Ace</div>', unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            take = c1.button(
-                "Take insurance",
-                type="primary",
-                key=f"insurance_{current['id']}_True",
-                use_container_width=True,
-                disabled=available < insurance_cost,
+
+    table_column, rail_column = st.columns([3.7, 1], gap="medium", vertical_alignment="top")
+    with table_column:
+        show_table(game)
+        if not current or current["phase"] == "complete":
+            if current and current["phase"] == "complete":
+                net = float(current.get("total_net", 0.0))
+                tone = "positive" if net > 0 else "negative" if net < 0 else "neutral"
+                st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} credits net</b> · Balance {float(game.get("balance", 0)):,.0f} credits · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
+            _draw_round_form(game)
+            show_shoe_snapshot(game, current)
+        elif current["phase"] == "insurance":
+            available = bj.available_balance(game)
+            insurance_cost = float(current["initial_wager"]) * 0.5
+            st.markdown("### Insurance decision")
+            with st.container(key="table_controls"):
+                st.markdown('<div class="eyebrow">Optional side bet · Dealer shows an Ace</div>', unsafe_allow_html=True)
+                c1, c2 = st.columns(2)
+                take = c1.button(
+                    "Take insurance",
+                    type="primary",
+                    key=f"insurance_{current['id']}_True",
+                    use_container_width=True,
+                    disabled=available < insurance_cost,
+                )
+                decline = c2.button(
+                    "Decline insurance",
+                    type="primary",
+                    key=f"insurance_{current['id']}_False",
+                    use_container_width=True,
+                )
+                if available < insurance_cost:
+                    st.caption(f"Insurance needs {insurance_cost:,.0f} additional credits; {available:,.0f} are available.")
+            show_math = st.toggle(
+                "Show hand math",
+                key="show_hand_math",
+                help="Keep the math panel open across hands until you switch it off.",
             )
-            decline = c2.button(
-                "Decline insurance",
-                type="primary",
-                key=f"insurance_{current['id']}_False",
-                use_container_width=True,
+            game["show_hand_math"] = bool(show_math)
+            if show_math:
+                _show_insurance_math(insurance_info)
+            if take or decline:
+                try:
+                    bj.choose_insurance(game, take, insurance_info)
+                    bj.commit_round_to_history(game)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
+            show_shoe_snapshot(game, current)
+        elif current["phase"] == "player":
+            index = int(current["current_hand"])
+            legal = bj.legal_actions(current, index, bj.available_balance(game))
+            selected = _action_buttons(game, legal, f"act_{current['id']}_{index}")
+            show_math = st.toggle(
+                "Show hand math",
+                key="show_hand_math",
+                help="Keep the math panel open across hands until you switch it off.",
             )
-            if available < insurance_cost:
-                st.caption(f"Insurance needs {insurance_cost:,.0f} additional credits; {available:,.0f} are available.")
-        show_math = st.toggle(
-            "Show hand math",
-            key="show_hand_math",
-            help="Keep the math panel open across hands until you switch it off.",
-        )
-        game["show_hand_math"] = bool(show_math)
-        if show_math:
-            _show_insurance_math(info)
-        if take or decline:
-            try:
-                bj.choose_insurance(game, take, info)
+            game["show_hand_math"] = bool(show_math)
+            if show_math:
+                show_hand_math(game, analysis, index)
+            if selected:
+                bj.apply_player_action(game, selected, analysis)
                 bj.commit_round_to_history(game)
                 st.rerun()
-            except ValueError as error:
-                st.error(str(error))
-        show_shoe_snapshot(game, current)
-        return
+            show_shoe_snapshot(game, current)
+        elif current["phase"] == "dealer":
+            with st.container(key="table_controls"):
+                st.markdown('<div class="eyebrow">Dealer turn</div>', unsafe_allow_html=True)
+                st.caption("Your hands are set. Reveal the dealer card and finish the hand under the active table rules.")
+                if st.button("Play dealer turn", type="primary", key=f"dealer_{current['id']}", use_container_width=True):
+                    bj.play_dealer(game)
+                    bj.commit_round_to_history(game)
+                    st.rerun()
+            show_shoe_snapshot(game, current)
 
-    if current["phase"] == "player":
-        index = current["current_hand"]
-        legal = bj.legal_actions(current, index, bj.available_balance(game))
-        selected = _action_buttons(game, legal, f"act_{current['id']}_{index}")
-        show_math = st.toggle(
-            "Show hand math",
-            key="show_hand_math",
-            help="Keep the math panel open across hands until you switch it off.",
-        )
-        game["show_hand_math"] = bool(show_math)
-        if show_math:
-            show_hand_math(game, get_analysis(game, index), index)
-        if selected:
-            analysis = get_analysis(game, index)
-            bj.apply_player_action(game, selected, analysis)
-            bj.commit_round_to_history(game)
-            st.rerun()
-        show_shoe_snapshot(game, current)
-        return
+    with rail_column:
+        with st.container(key="ev_rail"):
+            if analysis:
+                active_hand = current["hands"][int(current["current_hand"])]
+                total, soft = bj.hand_value(active_hand["cards"])
+                hand_label = f'Hand {int(current["current_hand"]) + 1} · {"soft " if soft else ""}{total} vs {current["dealer_up"]}'
+                show_ev_rail(analysis, hand_label)
+            elif insurance_info:
+                show_insurance_ev_rail(insurance_info, insurance_info["take_available"])
+            else:
+                completed_decisions = current.get("decisions", []) if current and current["phase"] == "complete" else []
+                last_player_decision = next(
+                    (decision for decision in reversed(completed_decisions) if decision.get("type") == "player"),
+                    None,
+                )
+                if last_player_decision:
+                    saved_analysis = {
+                        "actions": list(last_player_decision["evs"]),
+                        "evs": last_player_decision["evs"],
+                        "recommended": last_player_decision["recommended"],
+                    }
+                    cards = last_player_decision.get("cards", [])
+                    total, soft = bj.hand_value(cards)
+                    hand_label = f'Last decision · Hand {last_player_decision["hand_number"]} · {"soft " if soft else ""}{total} vs {last_player_decision["dealer_up"]}'
+                    show_ev_rail(saved_analysis, hand_label, title="Last decision EV")
+                else:
+                    show_idle_ev_rail()
 
-    if current["phase"] == "dealer":
-        with st.container(key="table_controls"):
-            st.markdown('<div class="eyebrow">Dealer turn</div>', unsafe_allow_html=True)
-            st.caption("Your hands are set. Reveal the dealer card and finish the hand under the active table rules.")
-            if st.button("Play dealer turn", type="primary", key=f"dealer_{current['id']}", use_container_width=True):
-                bj.play_dealer(game)
-                bj.commit_round_to_history(game)
-                st.rerun()
-        show_shoe_snapshot(game, current)
+
 def _preset_changed() -> None:
     selected = st.session_state.get("preset_choice", "Custom rules")
     if selected not in PRESETS:
