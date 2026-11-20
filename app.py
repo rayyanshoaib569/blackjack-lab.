@@ -210,28 +210,31 @@ def style_app() -> None:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
         :root { --felt: #14513f; --felt-deep: #0b342a; --gold: #d8b56d; --gold-light: #f0dba7; --ink: #14211f; --muted: #71807b; }
-        .stApp { background: radial-gradient(ellipse at 48% -12%, #203e36 0, #111a19 43%, #0c1112 100%); color: #eef2ee; }
-        .block-container { max-width: 1280px; padding-top: 1.4rem; padding-bottom: 3rem; }
+        .stApp { background:radial-gradient(ellipse at 48% 36%,#12633a 0%,#064523 48%,#00240f 100%); color:#eef2ee; min-height:100vh; }
+        .block-container { max-width:none; padding:1rem 1.5rem 2rem; padding-bottom:8rem; }
         [data-testid="stSidebar"] { background: #101817; border-right: 1px solid rgba(216,181,109,.12); }
         [data-testid="stSidebar"] * { color: #d9e0dc; }
         h1, h2, h3 { letter-spacing: -.025em; }
         h1, h2 { font-family: 'Playfair Display', Georgia, serif !important; }
-        h1 { color: #f2e3bf; }
+        h1 { color:#cb3337; -webkit-text-stroke:1px #130d0d; text-shadow:2px 3px 0 #080808,0 4px 12px rgba(0,0,0,.7); }
         h3 { color: #e8d8ae; }
         p, label, .stMarkdown, [data-testid="stMetricLabel"] { font-family: 'DM Sans', sans-serif; }
-        .hero { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.25rem 0 1.05rem; border-bottom:1px solid rgba(216,181,109,.2); margin-bottom:1.15rem; }
-        .brand { color:#d8b56d; font:600 .78rem 'DM Mono', monospace; letter-spacing:.18em; text-transform:uppercase; }
+        .hero { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.1rem 0 .35rem; border:0; margin-bottom:.35rem; }
+        .brand { color:#c92831; -webkit-text-stroke:.5px #080808; text-shadow:1px 2px 0 #080808; font:700 .78rem 'Playfair Display', Georgia,serif; letter-spacing:.18em; text-transform:uppercase; }
         .hero-note { color:#a2b2ab; font-size:.9rem; }
         .eyebrow { color:#d8b56d; text-transform:uppercase; letter-spacing:.14em; font:500 .72rem 'DM Mono', monospace; }
-        .felt-table { background: radial-gradient(ellipse at 50% 35%, #1b6a50, #104835 62%, #0a362a); border:1px solid rgba(234,204,137,.48); box-shadow: inset 0 0 0 9px rgba(7,31,25,.17), inset 0 0 50px rgba(4,24,19,.36), 0 18px 44px rgba(0,0,0,.28); border-radius: 48% / 15%; padding:1.7rem 2.2rem 2rem; min-height: 300px; margin:.5rem 0 1rem; position:relative; overflow:hidden; }
-        .felt-table:after { content:'BLACKJACK  ·  21'; display:block; text-align:center; color:rgba(231,204,143,.25); font:500 .66rem 'DM Mono',monospace; letter-spacing:.28em; margin-top:1.4rem; }
-        .table-label { color:#d7e8dc; text-transform:uppercase; letter-spacing:.14em; font:500 .65rem 'DM Mono',monospace; margin:.15rem 0 .55rem; }
-        .cards { display:flex; gap:.5rem; min-height:92px; flex-wrap:wrap; align-items:center; }
-        .playing-card { display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; width:58px; height:82px; padding:.38rem .42rem; box-sizing:border-box; border-radius:8px; background:linear-gradient(145deg,#fffefa,#ece9dc); color:#202a27; box-shadow:0 5px 12px rgba(0,0,0,.24); font:600 1.08rem 'DM Sans',sans-serif; animation:deal-in .26s ease-out both; }
+        .felt-table { background:transparent; border:0; box-shadow:none; border-radius:0; padding:1rem 1.5rem; min-height:64vh; margin:.25rem 0 .5rem; position:relative; overflow:visible; }
+        .felt-table:after { content:none; }
+        .table-label { color:#fff; text-shadow:1px 2px 3px #000,0 0 8px #000; text-transform:uppercase; letter-spacing:.1em; font:600 .72rem 'DM Mono',monospace; margin:.15rem 0 .55rem; }
+        .table-prompt { text-align:center; color:#fff; font:700 2rem 'Playfair Display',Georgia,serif; -webkit-text-stroke:1px #111; text-shadow:2px 3px 0 #111,0 4px 12px #000; padding:.5rem 0; }
+        .cards { display:flex; gap:0; min-height:112px; flex-wrap:wrap; align-items:center; }
+        .playing-card { display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; width:72px; height:102px; padding:.42rem .48rem; box-sizing:border-box; border-radius:8px; background:linear-gradient(145deg,#fffefa,#ece9dc); color:#202a27; box-shadow:0 8px 16px rgba(0,0,0,.34); font:700 1.15rem 'DM Sans',sans-serif; animation:deal-in .22s ease-out both; margin-left:-.4rem; }
+        .cards .playing-card:nth-child(odd) { transform:rotate(-5deg); }
+        .cards .playing-card:nth-child(even) { transform:rotate(5deg); }
         .playing-card .suit { font-size:1.05rem; line-height:1; }
         .playing-card.red { color:#bd3e39; }
-        .playing-card.back { align-items:center; justify-content:center; background:repeating-linear-gradient(45deg,#233c50,#233c50 5px,#314f62 5px,#314f62 10px); border:2px solid #f2e3bf; color:#f2e3bf; font:500 .72rem 'DM Mono',monospace; }
-        @keyframes deal-in { from { opacity:0; transform:translateY(-12px) rotate(-3deg) scale(.96); } to { opacity:1; transform:translateY(0) rotate(0) scale(1); } }
+        .playing-card.back { align-items:center; justify-content:center; background:repeating-linear-gradient(45deg,#075db7,#075db7 4px,#1487e4 4px,#1487e4 8px); border:2px solid #f2e3bf; color:#f2e3bf; font:500 .72rem 'DM Mono',monospace; }
+        @keyframes deal-in { from { opacity:0; translate:0 -12px; scale:.96; } to { opacity:1; translate:0 0; scale:1; } }
         .hand-status { margin-left:.25rem; color:#bbd6c3; font:.72rem 'DM Mono',monospace; }
         .active-hand { outline:1px solid rgba(240,219,167,.65); outline-offset:8px; border-radius:10px; }
         .decision-card { background:linear-gradient(135deg,rgba(31,46,42,.92),rgba(18,27,26,.92)); border:1px solid rgba(216,181,109,.2); border-radius:14px; padding:1rem 1.05rem; min-height:104px; }
@@ -249,23 +252,55 @@ def style_app() -> None:
         .history-meta { color:#a5b2ac; font-size:.8rem; }
         .rank-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(52px,1fr)); gap:.4rem; margin:.5rem 0; }
         .rank-cell { display:flex; justify-content:space-between; gap:.25rem; padding:.45rem .5rem; border-radius:8px; border:1px solid rgba(216,181,109,.13); background:rgba(27,38,35,.62); color:#e7dfcb; font:.78rem 'DM Mono',monospace; }
-        .table-seats { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); gap:1.35rem; align-items:stretch; }
-        .table-seat { min-width:0; padding:1rem; border:1px solid rgba(231,215,171,.22); border-radius:16px; background:rgba(7,34,27,.3); }
-        .table-seat.player-seat { background:rgba(7,34,27,.47); }
-        .seat-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; min-height:2.25rem; }
-        .seat-total { color:#f1e2bb; font:600 1.05rem 'DM Mono',monospace; }
-        .player-hand { margin:.6rem 0 .9rem; padding:.45rem .55rem .65rem; border:1px solid transparent; border-radius:12px; }
-        .player-hand.is-active { border-color:rgba(240,219,167,.75); background:rgba(240,219,167,.07); box-shadow:0 0 20px rgba(240,219,167,.08); }
-        .st-key-table_controls { padding:1rem 1.1rem; border:1px solid rgba(216,181,109,.3); border-radius:16px; background:linear-gradient(135deg,rgba(30,45,39,.96),rgba(17,27,25,.96)); margin:.75rem 0 1rem; }
+        .table-seats { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(11rem,1fr) minmax(11rem,1fr); min-height:58vh; gap:0; align-items:center; }
+        .table-seat { min-width:0; padding:.6rem; border:0; border-radius:0; background:transparent; }
+        .table-seat.dealer-seat { grid-column:2; grid-row:1; }
+        .table-seat.player-seat { grid-column:1; grid-row:2; }
+        .seat-heading { display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start; gap:.2rem; min-height:2.4rem; }
+        .seat-total { color:#fff; text-shadow:1px 2px 3px #000,0 0 8px #000; font:700 1.5rem 'DM Sans',sans-serif; }
+        .hand-total { color:#fff; text-shadow:1px 2px 3px #000,0 0 8px #000; font:700 1.5rem 'DM Sans',sans-serif; margin:.2rem 0 .25rem; }
+        .player-hand { margin:.65rem 0 1rem; padding:.25rem; border:0; border-radius:12px; }
+        .player-hand.is-active { background:rgba(240,219,167,.045); box-shadow:0 0 22px rgba(0,0,0,.16); }
+        .table-result { position:absolute; z-index:3; left:50%; top:51%; transform:translate(-50%,-50%); color:#f3d15b; font:700 2rem 'Playfair Display',Georgia,serif; text-align:center; white-space:nowrap; -webkit-text-stroke:1px #111; text-shadow:2px 3px 0 #111,0 5px 12px #000; }
+        .table-result.lose { color:#f05a58; }
+        .table-result.push { color:#e3e6e5; }
+        .felt-table.completed .table-seat { filter:grayscale(.5); opacity:.78; }
+        .bet-spot { position:absolute; left:24%; bottom:7%; display:flex; flex-direction:column; align-items:center; z-index:2; }
+        .bet-total { color:#fff; font:700 1.1rem 'DM Sans',sans-serif; text-shadow:1px 2px 3px #000,0 0 8px #000; margin-bottom:.15rem; }
+        .bet-marker { display:grid; place-items:center; width:3.5rem; height:3.5rem; border:5px dashed rgba(255,255,255,.8); border-radius:50%; background:radial-gradient(circle,#f0f5f5 0 47%,#39a9e8 49%); color:#14211f; font:700 .65rem 'DM Mono',monospace; box-shadow:0 5px 12px rgba(0,0,0,.32); }
+        .st-key-table_controls { padding:.45rem 0; border:0; border-radius:0; background:transparent; margin:.35rem 0 .6rem; }
         .st-key-table_controls .stButton button { min-height:2.8rem; font-weight:700; border-radius:999px; }
         .st-key-table_controls .stButton button[kind="primary"] { box-shadow:0 4px 14px rgba(216,181,109,.16); }
         .st-key-table_controls .stButton button:disabled { opacity:.38; }
-        .st-key-bet_chips .stButton button { width:5rem; height:5rem; min-height:5rem; border-radius:50%; border:5px dashed rgba(255,255,255,.72); box-shadow:inset 0 0 0 4px rgba(0,0,0,.15),0 5px 12px rgba(0,0,0,.28); color:#111b19; font:700 .9rem 'DM Mono',monospace; }
-        .st-key-bet_chips [data-testid="column"]:nth-child(1) button { background:radial-gradient(circle,#f4f2e8 0 48%,#a9aaa5 50%); }
-        .st-key-bet_chips [data-testid="column"]:nth-child(2) button { background:radial-gradient(circle,#edf4ff 0 48%,#176ac0 50%); }
-        .st-key-bet_chips [data-testid="column"]:nth-child(3) button { background:radial-gradient(circle,#f5f4ee 0 48%,#252827 50%); color:#111; }
-        .st-key-bet_chips [data-testid="column"]:nth-child(4) button { background:radial-gradient(circle,#eaf8ff 0 48%,#39a9e8 50%); color:#111; }
-        .st-key-ev_rail { position:sticky; top:1rem; z-index:2; padding:.9rem; border:1px solid rgba(216,181,109,.16); border-radius:14px; background:rgba(16,24,23,.72); }
+        .st-key-bet_chips { position:fixed; left:1rem; bottom:1.1rem; width:6rem; z-index:20; }
+        .st-key-bet_chips [data-testid="stVerticalBlock"] { gap:0; }
+        .st-key-bet_chips [data-testid="stElementContainer"] { position:relative; margin-bottom:-3rem; }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(1) { z-index:4; transform:translateX(0); }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(2) { z-index:3; transform:translateX(.45rem); }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(3) { z-index:2; transform:translateX(.9rem); }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(4) { z-index:1; transform:translateX(1.35rem); margin-bottom:0; }
+        .st-key-bet_chips .stButton button { width:5rem; height:5rem; min-height:5rem; border-radius:50%; border:5px dashed rgba(255,255,255,.78); box-shadow:inset 0 0 0 4px rgba(0,0,0,.16),0 5px 12px rgba(0,0,0,.32); color:#111b19; font:700 .9rem 'DM Mono',monospace; }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(1) button { background:radial-gradient(circle,#f4f2e8 0 48%,#a9aaa5 50%); }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(2) button { background:radial-gradient(circle,#edf4ff 0 48%,#123f83 50%); }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(3) button { background:radial-gradient(circle,#f5f4ee 0 48%,#252827 50%); color:#111; }
+        .st-key-bet_chips [data-testid="stElementContainer"]:nth-child(4) button { background:radial-gradient(circle,#eaf8ff 0 48%,#39a9e8 50%); color:#111; }
+        .st-key-bankroll_display { position:fixed; left:7.2rem; bottom:1.7rem; z-index:20; color:#fff; font:700 1.15rem 'DM Sans',sans-serif; text-shadow:1px 2px 3px #000,0 0 8px #000; }
+        .st-key-bet_actions { position:fixed; left:7.2rem; bottom:4rem; z-index:20; }
+        .st-key-bet_actions .stButton button { border-radius:999px; background:rgba(0,0,0,.72); color:#fff; border:1px solid rgba(255,255,255,.25); }
+        .st-key-center_deal { position:fixed; left:calc(50% - 3.5rem); top:47vh; width:7rem; z-index:18; animation:fade-in .22s ease-out both; }
+        .st-key-center_deal .stButton button { width:7rem; min-height:3rem; border-radius:999px; background:rgba(0,0,0,.72); border:1px solid rgba(255,255,255,.32); color:#fff; font-weight:700; }
+        .st-key-action_controls .stButton button { width:5rem; height:5rem; min-height:5rem; border-radius:50%; background:rgba(0,0,0,.72); border:1px solid rgba(255,255,255,.3); color:#fff; font-weight:700; }
+        .st-key-double_chip_button { position:fixed; left:18vw; bottom:20vh; z-index:19; }
+        .st-key-double_chip_button .stButton button { width:5rem; height:5rem; min-height:5rem; border:5px dashed rgba(255,255,255,.8); border-radius:50%; background:radial-gradient(circle,#eaf8ff 0 47%,#39a9e8 49%); color:#10202a; font:700 .72rem 'DM Mono',monospace; }
+        .st-key-table_toolbar { position:fixed; top:.65rem; right:1rem; z-index:30; }
+        .st-key-table_toolbar .stButton button { width:36px; height:36px; min-height:36px; border-radius:9px; padding:0; background:rgba(0,0,0,.7); color:#fff; border:1px solid rgba(255,255,255,.16); font-size:1rem; }
+        .st-key-table_toolbar [data-testid="stHorizontalBlock"] { gap:.35rem; }
+        div[data-testid="stDialog"] > div { background:linear-gradient(145deg,#3b3d3d,#17191a) !important; border:2px solid rgba(255,255,255,.82); border-radius:18px; box-shadow:0 18px 54px rgba(0,0,0,.58); }
+        div[data-testid="stDialog"] .stButton button { border-radius:999px; background:rgba(0,0,0,.72); color:#fff; border:1px solid rgba(255,255,255,.28); }
+        .resume-chip { display:grid; place-items:center; width:6rem; height:6rem; margin:.5rem auto; border:7px dashed rgba(255,255,255,.8); border-radius:50%; background:radial-gradient(circle,#f1f4f2 0 48%,#31a8e8 50%); color:#14211f; font:700 1.05rem 'DM Mono',monospace; box-shadow:0 6px 16px rgba(0,0,0,.4); }
+        .resume-balance { text-align:center; color:#fff; font:700 1.8rem 'DM Sans',sans-serif; text-shadow:1px 2px 3px #000; }
+        @keyframes fade-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        .st-key-ev_rail { position:fixed; top:35vh; right:1rem; width:min(18rem,19vw); max-height:52vh; overflow:auto; z-index:22; padding:.9rem; border:1px solid rgba(216,181,109,.12); border-radius:12px; background:rgba(16,24,23,.32); backdrop-filter:blur(2px); }
         .ev-rail-title { color:rgba(240,219,167,.68); text-transform:uppercase; letter-spacing:.1em; font:500 .68rem 'DM Mono',monospace; margin:0 0 .45rem; }
         .ev-rail-context { color:rgba(231,239,233,.58); font-size:.75rem; margin:0 0 .7rem; }
         .ev-rail-row { display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem .48rem; margin:.28rem 0; border:1px solid rgba(231,215,171,.08); border-radius:8px; color:rgba(231,239,233,.65); background:rgba(255,255,255,.018); font-size:.78rem; }
@@ -281,7 +316,7 @@ def style_app() -> None:
         button[data-baseweb="tab"] { color:#acb9b2; }
         button[data-baseweb="tab"][aria-selected="true"] { color:#f0dfb5; }
         [data-testid="stExpander"] { border:1px solid rgba(216,181,109,.16); border-radius:12px; background:rgba(18,27,26,.55); }
-        @media(max-width:700px) { .felt-table { border-radius:28px; padding:1.2rem 1rem; min-height:260px; } .table-seats { grid-template-columns:1fr; gap:.65rem; } .table-seat { padding:.8rem; } .st-key-ev_rail { position:static; } .playing-card { width:50px;height:72px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
+        @media(max-width:700px) { .block-container { padding:.5rem .5rem 7rem; } .felt-table { padding:.3rem; min-height:70vh; } .table-seats { grid-template-columns:1fr; grid-template-rows:minmax(10rem,1fr) minmax(10rem,1fr); min-height:64vh; } .table-seat.dealer-seat { grid-column:1; grid-row:1; } .table-seat.player-seat { grid-column:1; grid-row:2; } .st-key-ev_rail { top:auto; right:.4rem; bottom:.5rem; width:min(14rem,52vw); max-height:30vh; padding:.45rem; } .st-key-bet_chips { left:.25rem; bottom:.35rem; transform:scale(.65); transform-origin:bottom left; } .st-key-bankroll_display { left:4.2rem; bottom:.7rem; font-size:.85rem; } .st-key-bet_actions { left:4.2rem; bottom:2.6rem; } .st-key-center_deal { top:49vh; } .st-key-table_toolbar { top:.4rem; right:.4rem; } .st-key-double_chip_button { left:20vw; bottom:22vh; } .playing-card { width:54px;height:78px; } .hero { align-items:flex-start; flex-direction:column; } .decision-card { min-height:92px; padding:.75rem; } .decision-ev { font-size:1.14rem; } }
         </style>
         """,
         unsafe_allow_html=True,
@@ -343,24 +378,24 @@ def show_shoe_snapshot(game: dict[str, Any], round_state: dict[str, Any] | None)
 def show_table(game: dict[str, Any]) -> None:
     round_state = game.get("round")
     shoe = game["shoe"]
-    remaining = sum(shoe["cards"])
-    active_round = bool(round_state and round_state.get("phase") != "complete")
-    wager_now = sum(float(hand.get("wager", 0.0)) for hand in round_state.get("hands", [])) if active_round else 0.0
-    insurance_now = float(round_state.get("initial_wager", 0.0)) * 0.5 if active_round and round_state.get("insurance_taken") else 0.0
+    phase = round_state.get("phase") if round_state else None
+    if phase in {"insurance", "player", "dealer"}:
+        bet_amount = float(round_state.get("initial_wager", 0.0))
+    else:
+        bet_amount = float(st.session_state.get("wager_input", 0.0))
+    bet_markup = (
+        f'<div class="bet-spot"><div class="bet-total">${bet_amount:,.0f}</div><div class="bet-marker">{bet_amount:,.0f}</div></div>'
+        if bet_amount > 0
+        else ""
+    )
     st.markdown(
-        f'<div class="eyebrow">Solo table · Shoe {shoe["id"]} · {game["rules"]["name"]}</div>',
+        f'<div class="eyebrow">Blackjack Lab · Shoe {shoe["id"]}</div>',
         unsafe_allow_html=True,
     )
-    balance_cols = st.columns(4)
-    balance_cols[0].metric("Balance", f'{float(game.get("balance", DEFAULT_STARTING_BALANCE)):,.0f} credits')
-    balance_cols[1].metric("Available", f'{bj.available_balance(game):,.0f} credits')
-    wager_label = f"{wager_now:,.0f}" + (f" + {insurance_now:,.0f} insurance" if insurance_now else "")
-    balance_cols[2].metric("Wager", f"{wager_label} credits" if active_round else "Set below")
-    balance_cols[3].metric("Cards left", f"{remaining} / {shoe['initial_total']}")
 
     if not round_state:
         st.markdown(
-            '<div class="felt-table"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div><div class="table-label">Dealer</div><div class="subtle">Waiting for the deal</div></div><span class="seat-total">—</span></div><div class="cards"><div class="playing-card back"><span>21</span><span>?</span></div></div></section><section class="table-seat player-seat"><div class="seat-heading"><div><div class="table-label">Your seat</div><div class="subtle">Set a wager, then deal</div></div><span class="seat-total">—</span></div><div class="cards"><div class="playing-card back"><span>DEAL</span><span>?</span></div><div class="playing-card back"><span>DEAL</span><span>?</span></div></div></section></div></div>',
+            f'<div class="felt-table"><div class="table-prompt">Place Your Bets</div><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div class="table-label">Dealer</div><span class="seat-total">—</span></div><div class="cards"></div></section><section class="table-seat player-seat"><div class="seat-heading"><div class="table-label">Your Hand</div><span class="seat-total">—</span></div><div class="cards"></div></section></div>{bet_markup}</div>',
             unsafe_allow_html=True,
         )
     else:
@@ -373,7 +408,7 @@ def show_table(game: dict[str, Any]) -> None:
             dealer_value = result.title() if result in {"bust", "blackjack"} else str(dealer_total) + (" soft" if dealer_soft else "")
             dealer_note = "Final hand"
         else:
-            dealer_value = f"Up card {round_state['dealer_up']}"
+            dealer_value = str(bj.hand_value(dealer_cards)[0])
             dealer_note = "Second card dealt after player hands" if european_placeholder else "Hole card hidden"
         dealer_html = cards_html(dealer_cards, hidden=show_hidden, hidden_count=1 if european_placeholder else 0)
         player_html = []
@@ -383,10 +418,17 @@ def show_table(game: dict[str, Any]) -> None:
             total_label = f"{total}" + (" · soft" if soft else "")
             status = "Your decision" if current else hand.get("status", "active").replace("_", " ")
             player_html.append(
-                f'<div class="player-hand {"is-active" if current else ""}"><div class="table-label">Hand {index + 1} · {total_label} · wager {float(hand["wager"]):,.0f} credits <span class="hand-status">{status}</span></div>{cards_html(hand["cards"])}</div>'
+                f'<div class="player-hand {"is-active" if current else ""}"><div class="hand-total">{total_label}</div><div class="table-label">Hand {index + 1} · wager {float(hand["wager"]):,.0f} credits <span class="hand-status">{status}</span></div>{cards_html(hand["cards"])}</div>'
             )
+        result_markup = ""
+        if phase == "complete":
+            net = float(round_state.get("total_net", 0.0))
+            result_class = "win" if net > 0 else "lose" if net < 0 else "push"
+            result_text = f"Win ${net:,.0f}" if net > 0 else f"Lose ${abs(net):,.0f}" if net < 0 else "Push"
+            result_markup = f'<div class="table-result {result_class}">{result_text}</div>'
+        completed_class = " completed" if phase == "complete" else ""
         st.markdown(
-            f'<div class="felt-table"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div><div class="table-label">Dealer</div><div class="subtle">{dealer_note}</div></div><span class="seat-total">{dealer_value}</span></div>{dealer_html}</section><section class="table-seat player-seat"><div class="seat-heading"><div><div class="table-label">Your seat</div><div class="subtle">{len(round_state["hands"])} hand(s) · {round_state["phase"].replace("_", " ").title()}</div></div></div>{"".join(player_html)}</section></div></div>',
+            f'<div class="felt-table{completed_class}"><div class="table-seats"><section class="table-seat dealer-seat"><div class="seat-heading"><div class="table-label">Dealer</div><span class="seat-total">{dealer_value}</span></div>{dealer_html}</section><section class="table-seat player-seat"><div class="seat-heading"><div class="table-label">Your Hand · {len(round_state["hands"])} hand(s)</div></div>{"".join(player_html)}</section></div>{bet_markup}{result_markup}</div>',
             unsafe_allow_html=True,
         )
 def _decision_cache_key(game: dict[str, Any], hand_index: int) -> str:
@@ -531,11 +573,28 @@ def _start_new_game(game: dict[str, Any]) -> None:
 @st.dialog("Blackjack", width="small")
 def show_resume_dialog(game: dict[str, Any]) -> None:
     has_saved_game = bool(game.get("history") or game.get("round"))
+    round_state = game.get("round")
+    if round_state:
+        last_bet = float(round_state.get("initial_wager", 0.0))
+    elif game.get("history"):
+        last_bet = float(game["history"][-1].get("initial_wager", 0.0))
+    else:
+        last_bet = float(st.session_state.get("wager_input", 0.0))
     st.markdown('<div class="eyebrow">Your table is ready</div>', unsafe_allow_html=True)
-    st.markdown(f"### Balance · {float(game.get('balance', DEFAULT_STARTING_BALANCE)):,.0f} credits")
-    st.caption("Resume the saved table or deal a fresh shoe. Completed hand history stays saved.")
+    if not has_saved_game:
+        starting_balance = st.select_slider(
+            "Starting chips",
+            options=list(range(1000, 10001, 500)),
+            format_func=lambda amount: f"${amount:,}",
+            key="starting_balance_input",
+        )
+        game["starting_balance"] = int(starting_balance)
+        game["balance"] = float(starting_balance)
+    st.markdown(f'<div class="resume-chip">${last_bet:,.0f}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="resume-balance">${float(game.get("balance", DEFAULT_STARTING_BALANCE)):,.0f}</div>', unsafe_allow_html=True)
+    st.caption("Resume your saved table or start a new game. Completed hand history stays saved.")
     new_col, resume_col = st.columns(2)
-    if new_col.button("New game", use_container_width=True, key="welcome_new_game"):
+    if new_col.button("New Game", use_container_width=True, key="welcome_new_game"):
         _start_new_game(game)
         st.rerun()
     if resume_col.button("Resume", type="primary", use_container_width=True, key="welcome_resume", disabled=not has_saved_game):
@@ -545,60 +604,29 @@ def show_resume_dialog(game: dict[str, Any]) -> None:
 
 def _draw_round_form(game: dict[str, Any]) -> None:
     round_state = game.get("round")
-    if round_state and round_state["phase"] != "complete":
+    active_round = bool(round_state and round_state["phase"] != "complete")
+    balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
+    st.session_state.setdefault("wager_input", 0.0)
+    wager_key_value = float(round_state.get("initial_wager", 0.0)) if active_round else min(
+        balance, float(st.session_state.get("wager_input", 0.0))
+    )
+    st.session_state["wager_input"] = wager_key_value
+    with st.container(key="bet_chips"):
+        for amount in (1, 10, 100, 500):
+            if st.button(f"{amount}", key=f"bet_chip_{amount}", help=f"Add {amount:,} credits to your bet", disabled=active_round):
+                wager_key_value = min(balance, wager_key_value + amount)
+                st.session_state["wager_input"] = wager_key_value
+    with st.container(key="bet_actions"):
+        if st.button("Clear", key="clear_bet", disabled=active_round or wager_key_value <= 0):
+            st.session_state["wager_input"] = 0.0
+
+
+def _deal_from_table(game: dict[str, Any]) -> None:
+    wager = float(st.session_state.get("wager_input", 0.0))
+    if wager < 1:
         return
-    previous = round_state and round_state.get("phase") == "complete"
-    if previous:
-        st.markdown("### Place your next wager")
-    history_started = bool(game.get("history")) or int(game["shoe"].get("rounds", 0)) > 0
-    with st.container(key="table_controls"):
-        st.markdown('<div class="eyebrow">Place your bets</div>', unsafe_allow_html=True)
-        balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
-        st.session_state.setdefault("starting_balance_input", int(game.get("starting_balance", DEFAULT_STARTING_BALANCE)))
-        if not history_started and balance == float(game.get("starting_balance", DEFAULT_STARTING_BALANCE)):
-            starting_balance = st.select_slider(
-                "Starting balance",
-                options=list(range(1000, 10001, 500)),
-                format_func=lambda amount: f"{amount:,} credits",
-                key="starting_balance_input",
-                help="Choose your practice bankroll before your first hand. These credits have no cash value.",
-            )
-            game["starting_balance"] = int(starting_balance)
-            game["balance"] = float(starting_balance)
-        else:
-            st.select_slider(
-                "Starting balance",
-                options=list(range(1000, 10001, 500)),
-                format_func=lambda amount: f"{amount:,} credits",
-                key="starting_balance_input",
-                disabled=True,
-                help="The starting balance is fixed after the first hand so the saved session remains consistent.",
-            )
-        balance = float(game.get("balance", DEFAULT_STARTING_BALANCE))
-        st.session_state.setdefault("wager_input", 0.0)
-        wager_key_value = min(balance, float(st.session_state.get("wager_input", 0.0)))
-        st.session_state["wager_input"] = wager_key_value
-        with st.container(key="bet_chips"):
-            chip_cols = st.columns(4)
-            for chip_col, amount in zip(chip_cols, (1, 10, 100, 500)):
-                if chip_col.button(f"{amount}", key=f"bet_chip_{amount}", help=f"Add {amount:,} credits to your bet"):
-                    wager_key_value = min(balance, wager_key_value + amount)
-                    st.session_state["wager_input"] = wager_key_value
-        st.caption(f"Current bet · {wager_key_value:,.0f} credits  ·  Balance · {balance:,.0f} credits")
-        if st.button("Clear bet", key="clear_bet", disabled=wager_key_value <= 0):
-            wager_key_value = 0.0
-            st.session_state["wager_input"] = wager_key_value
-        st.caption("Practice chips only · doubles, splits, and insurance use available credits.")
-        if balance < 1:
-            st.warning("Your practice balance is empty. Reload practice chips to start a fresh shoe; your hand history will stay saved.")
-            if st.button("Reload practice chips · new shoe", type="primary", use_container_width=True, key="reload_practice_chips"):
-                game["balance"] = float(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
-                game["shoe"] = bj.new_shoe(game["rules"])
-                game["round"] = None
-                st.rerun()
-            return
-        if st.button("Deal", type="primary", use_container_width=True, key="deal_hand", disabled=wager_key_value < 1):
-            wager = wager_key_value
+    with st.container(key="center_deal"):
+        if st.button("Deal", type="primary", use_container_width=True, key="deal_hand"):
             game["starting_balance"] = int(game.get("starting_balance", DEFAULT_STARTING_BALANCE))
             try:
                 bj.deal_round(game, wager)
@@ -611,19 +639,23 @@ def _draw_round_form(game: dict[str, Any]) -> None:
 def _action_buttons(game: dict[str, Any], actions: list[str], key_prefix: str) -> str | None:
     selected = None
     labels = {"stand": "Stand", "hit": "Hit", "double": "Double", "split": "Split", "surrender": "Surrender"}
-    with st.container(key="table_controls"):
+    visible_actions = [action for action in actions if action != "double"]
+    with st.container(key="action_controls"):
         st.markdown('<div class="eyebrow">Your move · Legal actions</div>', unsafe_allow_html=True)
-        for row_start in range(0, len(actions), 3):
-            row_actions = actions[row_start : row_start + 3]
+        for row_start in range(0, len(visible_actions), 3):
+            row_actions = visible_actions[row_start : row_start + 3]
             button_cols = st.columns(len(row_actions))
             for index, action in enumerate(row_actions):
                 if button_cols[index].button(
                     labels[action],
                     key=f"{key_prefix}_{action}",
                     type="primary",
-                    use_container_width=True,
                 ):
                     selected = action
+    if "double" in actions:
+        with st.container(key="double_chip_button"):
+            if st.button("Double", key=f"{key_prefix}_double", help="Double the current wager and take one card"):
+                selected = "double"
     return selected
 
 
@@ -648,6 +680,32 @@ def _show_insurance_math(info: dict[str, Any]) -> None:
         )
 
 
+def show_table_toolbar(game: dict[str, Any]) -> None:
+    with st.container(key="table_toolbar"):
+        spacer, advice_col, home_col, sound_col = st.columns([12, 1, 1, 1])
+        if advice_col.button("💬", key="toolbar_advice", help="Toggle detailed hand math"):
+            show_math = not bool(st.session_state.get("show_hand_math", False))
+            st.session_state["show_hand_math"] = show_math
+            game["show_hand_math"] = show_math
+            st.rerun()
+        if home_col.button("⌂", key="toolbar_home", help="Resume or start a new game"):
+            st.session_state["_welcome_menu_open"] = True
+            st.rerun()
+        muted = bool(st.session_state.get("_muted", True))
+        if sound_col.button("🔇" if muted else "🔊", key="toolbar_sound", help="Toggle table sound icon"):
+            st.session_state["_muted"] = not muted
+            st.rerun()
+
+
+def show_cash_balance(game: dict[str, Any]) -> None:
+    with st.container(key="bankroll_display"):
+        cash = bj.available_balance(game) if game.get("round") and game["round"].get("phase") != "complete" else max(
+            0.0,
+            float(game.get("balance", DEFAULT_STARTING_BALANCE)) - float(st.session_state.get("wager_input", 0.0)),
+        )
+        st.markdown(f'<div>${cash:,.0f}</div>', unsafe_allow_html=True)
+
+
 def render_play(game: dict[str, Any]) -> None:
     current = game.get("round")
     if current and current["phase"] == "dealer":
@@ -667,17 +725,18 @@ def render_play(game: dict[str, Any]) -> None:
             current, game["shoe"], can_take=available >= insurance_cost
         )
 
+    show_table_toolbar(game)
     table_column, rail_column = st.columns([3.7, 1], gap="medium", vertical_alignment="top")
     with table_column:
-        show_table(game)
+        _draw_round_form(game)
         if not current or current["phase"] == "complete":
-            if current and current["phase"] == "complete":
-                net = float(current.get("total_net", 0.0))
-                tone = "positive" if net > 0 else "negative" if net < 0 else "neutral"
-                st.markdown(f'<div class="recommendation">Hand complete · <b>{current.get("total_net", 0):+.2f} credits net</b> · Balance {float(game.get("balance", 0)):,.0f} credits · Dealer {current.get("dealer_result", "").title()} · <span class="result-pill">{tone}</span></div>', unsafe_allow_html=True)
-            _draw_round_form(game)
+            show_table(game)
+            _deal_from_table(game)
             show_shoe_snapshot(game, current)
-        elif current["phase"] == "insurance":
+        else:
+            show_table(game)
+
+        if current and current["phase"] == "insurance":
             available = bj.available_balance(game)
             insurance_cost = float(current["initial_wager"]) * 0.5
             st.markdown("### Insurance decision")
@@ -685,14 +744,14 @@ def render_play(game: dict[str, Any]) -> None:
                 st.markdown('<div class="eyebrow">Optional side bet · Dealer shows an Ace</div>', unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 take = c1.button(
-                    "Take insurance",
+                    "Insure",
                     type="primary",
                     key=f"insurance_{current['id']}_True",
                     use_container_width=True,
                     disabled=available < insurance_cost,
                 )
                 decline = c2.button(
-                    "Decline insurance",
+                    "Decline",
                     type="primary",
                     key=f"insurance_{current['id']}_False",
                     use_container_width=True,
@@ -715,7 +774,7 @@ def render_play(game: dict[str, Any]) -> None:
                 except ValueError as error:
                     st.error(str(error))
             show_shoe_snapshot(game, current)
-        elif current["phase"] == "player":
+        elif current and current["phase"] == "player":
             index = int(current["current_hand"])
             legal = bj.legal_actions(current, index, bj.available_balance(game))
             selected = _action_buttons(game, legal, f"act_{current['id']}_{index}")
@@ -732,6 +791,7 @@ def render_play(game: dict[str, Any]) -> None:
                 bj.commit_round_to_history(game)
                 st.rerun()
             show_shoe_snapshot(game, current)
+    show_cash_balance(game)
     with rail_column:
         with st.container(key="ev_rail"):
             if analysis:

@@ -35,10 +35,11 @@ Open the local address printed by Streamlit. There is no database, account, or d
 
 - A playable table with hit, stand, double, split, resplit, surrender, insurance, and dealer play when those actions are legal under the active rules.
 - A resume/new-game welcome dialog, chip-denomination betting controls, and automatic dealer play when the player finishes.
+- A felt-style table inspired by the supplied reference: diagonal dealer/player areas, live chip stack and balance, centered Deal control, table toolbar, and compact hand result display.
 - A selectable practice balance from 1,000 to 10,000 credits. Wagers, insurance, doubles, and splits are limited by the available balance; the hand history records balance movement.
 - Presets plus configurable deck count, blackjack payout, soft-17 rule, double restrictions, double after split, pair-matching rule, split-hand limit, split-ace behavior, surrender, insurance, dealer hole-card procedure, and reshuffle behavior.
 - One finite shoe carried across hands. Cards already dealt are removed from the physical shoe. The app can reshuffle automatically at the selected penetration or wait for a manual reshuffle.
-- A live side rail beside the table with expected values for each legal action on the active hand; detailed **Show hand math** adds exact immediate bust and insurance probabilities, estimated dealer outcomes, standard errors, and expandable reasoning.
+- A low-contrast, fixed side rail beside the table with expected values for each legal action on the active hand, so the values remain visible without scrolling. Detailed **Show hand math** adds exact immediate bust and insurance probabilities, estimated dealer outcomes, standard errors, and expandable reasoning.
 - A history view with the rules snapshot, shoe state, dealt cards, actions, result, and probabilities/EVs recorded when each decision was made.
 - Browser-local saving, a JSON session backup download, and an erase control.
 
